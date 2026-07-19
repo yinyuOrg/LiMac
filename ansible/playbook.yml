@@ -1,0 +1,128 @@
+---
+- name: Setup Debian 13 development environment
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars_files:
+    - vars/default.yml
+
+  vars:
+    apt_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+    apt_arch: "{{ apt_arch_map[ansible_architecture] | default(ansible_architecture) }}"
+
+  pre_tasks:
+    - name: Fail on non-Debian systems
+      ansible.builtin.fail:
+        msg: "此 playbook 仅支持 Debian/Ubuntu 系统"
+      when: ansible_os_family != "Debian"
+
+    - name: Ensure Feishu URL is updated
+      ansible.builtin.fail:
+        msg: "请更新 ansible/vars/default.yml 中的 feishu_deb_url 为飞书官网最新下载地址：https://www.feishu.cn/download"
+      when: feishu_deb_url == "https://www.feishu.cn/download/Feishu-linux_x64.deb"
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      become: yes
+
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - gnupg
+          - ca-certificates
+          - software-properties-common
+        state: present
+      become: yes
+
+    - name: Install Docker
+      block:
+        - name: Add Docker GPG key
+          ansible.builtin.get_url:
+            url: https://download.docker.com/linux/debian/gpg
+            dest: /usr/share/keyrings/docker.asc
+            mode: '0644'
+
+        - name: Add Docker APT repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch={{ apt_arch }} signed-by=/usr/share/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+            filename: docker
+            state: present
+            update_cache: yes
+
+        - name: Install Docker packages
+          ansible.builtin.apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-buildx-plugin
+              - docker-compose-plugin
+            state: present
+
+        - name: Add user to docker group
+          ansible.builtin.user:
+            name: "{{ ansible_user_id }}"
+            groups: docker
+            append: yes
+      become: yes
+
+    - name: Install Google Chrome
+      block:
+        - name: Add Google GPG key
+          ansible.builtin.get_url:
+            url: https://dl.google.com/linux/linux_signing_key.pub
+            dest: /usr/share/keyrings/google-chrome.asc
+            mode: '0644'
+
+        - name: Add Google Chrome repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch={{ apt_arch }} signed-by=/usr/share/keyrings/google-chrome.asc] https://dl.google.com/linux/chrome/deb/ stable main"
+            filename: google-chrome
+            state: present
+            update_cache: yes
+
+        - name: Install Google Chrome
+          ansible.builtin.apt:
+            name: google-chrome-stable
+            state: present
+      become: yes
+
+    - name: Install Feishu
+      block:
+        - name: Download Feishu .deb
+          ansible.builtin.get_url:
+            url: "{{ feishu_deb_url }}"
+            dest: /tmp/feishu.deb
+            mode: '0644'
+
+        - name: Install Feishu
+          ansible.builtin.apt:
+            deb: /tmp/feishu.deb
+            state: present
+      become: yes
+
+    - name: Install WeChat
+      block:
+        - name: Download WeChat .deb
+          ansible.builtin.get_url:
+            url: "{{ wechat_deb_url }}"
+            dest: /tmp/wechat.deb
+            mode: '0644'
+
+        - name: Install WeChat
+          ansible.builtin.apt:
+            deb: /tmp/wechat.deb
+            state: present
+      become: yes
+
+    - name: Fix possible broken dependencies after installing third-party .deb packages
+      ansible.builtin.apt:
+        state: fixed
+      become: yes

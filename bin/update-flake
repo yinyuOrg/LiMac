@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# Script to update flake.lock file
+# This script updates all flake inputs and creates a backup of the old flake.lock
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+echo "Running from: $(pwd)"
+echo ""
+
+# Check if flake.nix exists
+if [[ ! -f "flake.nix" ]]; then
+    echo "Error: flake.nix not found in current directory: $(pwd)"
+    exit 1
+fi
+
+# Create backup of current flake.lock
+if [[ -f "flake.lock" ]]; then
+    BACKUP_NAME="flake.lock.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "Creating backup: $BACKUP_NAME"
+    cp flake.lock "$BACKUP_NAME"
+fi
+
+echo "Updating flake inputs..."
+nix flake update
+
+echo ""
+echo "✅ Flake inputs updated successfully!"
+
+# Show what changed
+if [[ -f "flake.lock" && -f "$BACKUP_NAME" ]]; then
+    echo ""
+    echo "Changes in flake.lock:"
+    if command -v nvd &> /dev/null; then
+        nvd diff "$BACKUP_NAME" flake.lock || true
+    else
+        echo "(Install 'nvd' for better diff visualization: nix profile install nixpkgs#nvd)"
+        echo "Manual comparison: diff -u $BACKUP_NAME flake.lock"
+    fi
+fi
+
+echo ""
+echo "To build with updated inputs, run:"
+echo "  nix build"
+echo ""
+echo "To test home-manager configuration:"
+echo "  nix build .#homeConfigurations.forTesting.activationPackage"

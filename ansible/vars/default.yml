@@ -1,0 +1,7 @@
+---
+# 系统级软件包下载地址
+# 飞书下载地址需手动从官网获取：https://www.feishu.cn/download
+feishu_deb_url: "https://www.feishu.cn/download/Feishu-linux_x64.deb"
+
+# 微信 Linux 版下载地址
+wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"

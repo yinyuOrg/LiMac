@@ -1,0 +1,2 @@
+#!/bin/bash
+ansible-playbook ansible/playbook.yml -i ansible/inventory.ini --ask-become-pass
