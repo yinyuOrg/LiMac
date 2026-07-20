@@ -30,7 +30,7 @@
 
     > 重启后可通过 `id` 命令确认输出中包含 `nix-users`。若临时想在不重启的情况下继续，可在当前终端执行 `newgrp nix-users`。
 
-*(若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/operations.md#2-高级-nix-安装与配置指导))*
+*(若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/OPERATIONS.md#2-高级-nix-安装与配置指导))*
 
 #### macOS (Apple Silicon)
 
@@ -62,7 +62,7 @@ bin/home-manager-setup
     *   Linux: `/home/<username>/.nix-profile/bin/fish`
     *   macOS: `/Users/<username>/.nix-profile/bin/fish`
 
-*(具体终端如 Konsole、iTerm2 或 VS Code 终端的切换步骤请参考 [终端 Shell 设置指导](docs/operations.md#3-终端-shell-设置指导))*
+*(具体终端如 Konsole、iTerm2 或 VS Code 终端的切换步骤请参考 [终端 Shell 设置指导](docs/OPERATIONS.md#3-终端-shell-设置指导))*
 
 ---
 
@@ -89,4 +89,4 @@ bin/install-via-ansible
 
 ## 📖 更多参考
 
-项目结构、高级定制、如何新增软件包或用户，请参考 ➡️ [操作手册 (docs/operations.md)](docs/operations.md)。
+项目结构、高级定制、如何新增软件包或用户，请参考 ➡️ [操作手册 (docs/OPERATIONS.md)](docs/OPERATIONS.md)。

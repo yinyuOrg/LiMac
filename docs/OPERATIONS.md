@@ -12,7 +12,7 @@
 ├── flake.lock             # 依赖锁定
 ├── README.md              # 快速开始
 ├── docs/
-│   └── operations.md       # 本手册
+│   └── OPERATIONS.md       # 本手册
 ├── bin/                   # 辅助脚本
 │   ├── home-manager-setup # 首次初始化脚本（自动生成属于您的 host 配置文件并应用）
 │   ├── update-flake       # 更新 flake.lock
@@ -180,6 +180,33 @@ env HTTPS_PROXY=http://127.0.0.1:7890 nix run --refresh git+https://gitee.com/Xm
    },
    "terminal.integrated.defaultProfile.osx": "fish"
    ```
+
+### 3.4 WSL2 设置 Fish 为默认 Shell
+
+推荐通过修改 Linux 登录 shell 的方式，让 Fish 成为 WSL2 的默认环境。
+
+1. 确认 Fish 已由 Home Manager 安装：
+   ```sh
+   ls -la ~/.nix-profile/bin/fish
+   ```
+
+2. 将 Fish 加入系统允许的 shell 列表，并设为默认登录 shell：
+   ```sh
+   sudo sh -c "echo $(realpath ~/.nix-profile/bin/fish) >> /etc/shells"
+   chsh -s ~/.nix-profile/bin/fish
+   ```
+
+3. 退出 WSL 并重启实例使变更生效：
+   ```sh
+   exit
+   ```
+   然后在 Windows PowerShell / CMD 中执行：
+   ```powershell
+   wsl --shutdown
+   ```
+   重新打开 WSL 后默认即为 Fish。
+
+> **恢复方法**：若设置后无法登录，可在 Windows 终端执行 `wsl -e bash` 进入 Bash，然后运行 `chsh -s /bin/bash` 恢复。
 
 ---
 
