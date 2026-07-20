@@ -8,18 +8,35 @@
 
 ### 第一步：安装 Nix
 
-在终端直接运行以下官方一键安装命令：
+#### Linux (Debian / Ubuntu)
 
-*   **Linux (Debian / Ubuntu)**:
+1. 安装 Nix 包：
     ```sh
     sudo apt install nix
     ```
-    *(若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/operations.md#2-高级-nix-安装与配置指导))*
 
-*   **macOS (Apple Silicon)**:
-    ```sh
-    curl -L https://nixos.org/nix/install | sh -s -- --daemon
+2. 编辑 `/etc/nix/nix.conf`，写入基础配置（**将 `your_username` 替换为你的实际用户名**，可通过 `whoami` 查看）：
+    ```ini
+    sandbox = true
+    experimental-features = nix-command flakes
+    trusted-users = root your_username
+    build-users-group = nixbld
     ```
+
+3. 将当前用户加入 `nix-users` 组，然后**重启电脑**使组变更生效：
+    ```sh
+    sudo usermod -aG nix-users $(whoami)
+    ```
+
+    > 重启后可通过 `id` 命令确认输出中包含 `nix-users`。若临时想在不重启的情况下继续，可在当前终端执行 `newgrp nix-users`。
+
+*(若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/operations.md#2-高级-nix-安装与配置指导))*
+
+#### macOS (Apple Silicon)
+
+```sh
+curl -L https://nixos.org/nix/install | sh -s -- --daemon
+```
 
 ### 第二步：配置初始化与应用
 
