@@ -1,4 +1,3 @@
-_:
-{
+_: {
   # Linux-specific Home Manager options
 }

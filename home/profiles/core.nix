@@ -1,9 +1,10 @@
 {
   pkgs,
+  config,
   lib,
   ...
 }:
-{
+lib.mkIf config.profiles.core.enable {
   home.packages =
     with pkgs;
     lib.mkMerge [

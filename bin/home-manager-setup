@@ -116,6 +116,39 @@ generate_host_config() {
     
     mkdir -p hosts
 
+    # 检测是否为 WSL
+    local is_wsl=false
+    if [ "$IS_DARWIN" = false ]; then
+        if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null || [ -f /proc/sys/fs/binfmt_misc/WSLPersonal ]; then
+            is_wsl=true
+        fi
+    fi
+
+    local use_wsl_optimization=false
+    if [ "$is_wsl" = true ]; then
+        echo
+        log_info "检测到您当前运行在 WSL/WSL2 (Windows Subsystem for Linux) 环境中。"
+        log_info "在 WSL2 环境下，推荐使用 Windows 宿主机的 VS Code (通过 WSL Remote 插件) 和宿主机 Docker Desktop，"
+        log_info "并且通常不需要物理调试的嵌入式开发工具。"
+        echo
+        while true; do
+            read -p "是否为您应用 WSL 专属优化（关闭 GUI 软件、嵌入式工具和本地 Docker，只保留核心基础工具与语言级开发包）？[Y/n]: " input_wsl
+            case "${input_wsl:-Y}" in
+                [Yy]*)
+                    use_wsl_optimization=true
+                    break
+                    ;;
+                [Nn]*)
+                    use_wsl_optimization=false
+                    break
+                    ;;
+                *)
+                    log_warning "请输入 y 或 n"
+                    ;;
+            esac
+        done
+    fi
+
     if [ "$IS_DARWIN" = true ]; then
         cat > "$host_file" << EOF
 {
@@ -129,6 +162,23 @@ generate_host_config() {
   imports = [
     ../home/platforms/darwin.nix
   ];
+}
+EOF
+    elif [ "$use_wsl_optimization" = true ]; then
+        cat > "$host_file" << EOF
+{
+  home.username = "${current_user}";
+
+  profiles = {
+    ide.enable = false;        # WSL 环境下通常不使用本地 GUI VS Code
+    embedded.enable = false;   # WSL 环境下不直接物理调试板子
+    containers.enable = false; # WSL 环境下建议与 Windows 的 Docker Desktop 整合
+  };
+
+  programs.git.settings = {
+    user.name = "${git_username}";
+    user.email = "${git_email}";
+  };
 }
 EOF
     else
@@ -145,22 +195,18 @@ EOF
     fi
 
     log_success "Host 配置文件已成功生成: $host_file"
-    log_warning "提示: 新生成的配置文件未被 Git 跟踪。由于 Nix Flakes 只读取 Git 跟踪的文件，在继续之前你需要手动执行："
-    log_warning "  git add $host_file"
-    log_warning "（出于安全考虑，脚本不会自动替你执行此操作）"
-    
-    echo
-    while true; do
-        read -p "你是否已经执行了 'git add $host_file'？[y/N]: " is_added
-        case "$is_added" in
-            [Yy]*)
-                break
-                ;;
-            *)
-                log_warning "请先在另一个终端运行: git add $host_file"
-                ;;
-        esac
-    done
+
+    # 检查是否在 Git 仓库中并自动暂存新生成的配置文件
+    if git rev-parse --is-inside-work-tree &>/dev/null; then
+        log_info "正在自动执行 'git add $host_file' 以使 Nix Flakes 能够读取新配置文件..."
+        if git add "$host_file" 2>/dev/null; then
+            log_success "配置文件已自动成功加入 Git 跟踪！"
+        else
+            log_warning "未能自动执行 'git add'，请手动执行 'git add $host_file' 否则 Nix 构建可能会报错。"
+        fi
+    else
+        log_warning "当前目录不属于 Git 仓库，Nix Flakes 可能会在评估时忽略未跟踪的文件。如果构建报错，请执行 'git init && git add $host_file'。"
+    fi
 }
 
 # 检查 Nix daemon 可访问性（多用户安装常见权限问题）

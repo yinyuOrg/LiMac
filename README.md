@@ -49,11 +49,8 @@ bin/home-manager-setup
 1.  **自动生成专属配置文件**：脚本会根据当前系统用户名和平台，在 `hosts/` 目录下创建你的 Host 配置：
     *   Linux: `hosts/<username>.linux.nix`
     *   macOS: `hosts/<username>.darwin.nix`
-2.  **加入 Git 跟踪**：因为 Nix Flakes 纯评估安全限制，脚本会暂停并等待你手动将新生成的配置文件暂存：
-    ```sh
-    git add hosts/<username>.<platform>.nix
-    ```
-3.  **直接应用**：在脚本中输入 `y` 确认，即可一键应用所有用户包与环境配置。
+2.  **自动加入 Git 跟踪**：因为 Nix Flakes 纯评估安全限制，脚本会自动将新生成的配置文件通过 `git add` 暂存，省去手动操作。
+3.  **直接应用**：一键自动应用所有用户包与环境配置。
 
 ### 第三步：更换默认 Shell
 

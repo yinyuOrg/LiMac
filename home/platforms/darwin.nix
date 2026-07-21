@@ -1,4 +1,3 @@
-_:
-{
+_: {
   # macOS-specific Home Manager options
 }

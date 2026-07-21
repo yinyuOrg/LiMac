@@ -225,8 +225,8 @@ bin/home-manager-setup
 4. 自动在 `hosts/` 目录下生成专属配置文件：
    - Linux: `hosts/<username>.linux.nix`
    - macOS: `hosts/<username>.darwin.nix`
-5. **重要**：因为 Nix Flakes 只读取被 Git 跟踪的文件，脚本会暂停并等待你在另一个窗口执行 `git add hosts/<username>.<platform>.nix`。
-6. 暂存后，输入 `y` 继续，脚本将直接应用当前主仓库的配置。
+5. **自动加入 Git 跟踪**：因为 Nix Flakes 只读取被 Git 跟踪的文件，脚本会自动帮你执行 `git add hosts/<username>.<platform>.nix` 进行暂存。
+6. 自动直接应用当前主仓库的配置。
 
 ---
 
@@ -387,7 +387,7 @@ wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm6
 
 ### 11.1 Nix 提示找不到新生成的 host 文件
 
-这是由于 Nix Flakes 只读取已加入 Git 跟踪的文件。请确保已在终端执行：
+虽然 `bin/home-manager-setup` 会自动执行此操作，但如果是你手动创建的或在未受 Git 跟踪的分支中，Nix Flakes 只会读取已加入 Git 跟踪的文件。请确保已在终端执行：
 ```sh
 git add hosts/<username>.<platform>.nix
 ```
