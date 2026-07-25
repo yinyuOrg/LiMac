@@ -6,7 +6,7 @@
 
 - Docker
 - Google Chrome
-- 飞书（Feishu）
+- VSCode
 - 微信（WeChat）
 
 ## 前置要求
@@ -29,11 +29,48 @@ bin/install-via-ansible
 ansible-playbook ansible/playbook.yml -i ansible/inventory.ini --ask-become-pass
 ```
 
+---
+
+## 如何卸载
+
+### 全部卸载
+
+```bash
+sudo apt remove --purge \
+  docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
+  google-chrome-stable code com.tencent.wechat
+sudo rm -f /etc/apt/sources.list.d/{docker,google-chrome,vscode}.sources
+sudo rm -f /usr/share/keyrings/{docker,google-chrome,microsoft}.asc
+sudo apt update
+```
+
+> 微信包名可能不同，可用 `dpkg -l | grep -i wechat` 查看后替换。
+
+### 单独卸载
+
+```bash
+# Docker
+sudo apt remove --purge docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo rm -f /etc/apt/sources.list.d/docker.sources /usr/share/keyrings/docker.asc
+
+# Google Chrome
+sudo apt remove --purge google-chrome-stable
+sudo rm -f /etc/apt/sources.list.d/google-chrome.sources /usr/share/keyrings/google-chrome.asc
+
+# VSCode
+sudo apt remove --purge code
+sudo rm -f /etc/apt/sources.list.d/vscode.sources /usr/share/keyrings/microsoft.asc
+
+# 微信
+sudo dpkg -l | grep -i wechat
+sudo apt remove --purge <实际包名>
+```
+
+---
+
 ## 注意事项
 
-- 安装飞书和微信前，请先到官网获取最新 `.deb` 下载地址，并更新 `ansible/vars/default.yml` 中的：
-  - `feishu_deb_url`
-  - `wechat_deb_url`
+- 安装微信前，请先到官网获取最新 `.deb` 下载地址，并更新 `ansible/vars/default.yml` 中的 `wechat_deb_url`。
 - 微信官方 Linux 版可能依赖特定库， playbook 最后会自动运行 `apt --fix-broken` 修复。
 - Docker 安装后需要重新登录或执行 `newgrp docker` 才能免 sudo 使用。
 - 仅 Linux 支持，macOS 上 Ansible playbook 中的部分功能不可用。

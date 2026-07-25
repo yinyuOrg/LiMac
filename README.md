@@ -30,7 +30,7 @@
 - 🏠 **Home Manager**：集中管理 Shell、Git、工具链与 dotfiles。
 - ⚡ **自动 Host 生成**：运行一条脚本即可生成属于你的 `hosts/<username>.<platform>.nix`。
 - 📦 **分领域包管理**：AI、Python、Java、C++、嵌入式、容器、IDE 按需启用。
-- 🐧 **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、飞书、微信（仅 Linux）。
+- 🐧 **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、VSCode、微信（仅 Linux）。
 - 🎨 **内置维护工具**：`nix fmt` 格式化、`bin/update-flake` 更新依赖。
 
 ---
@@ -126,7 +126,7 @@ bin/home-manager-setup
 <a id="system-install"></a>
 ## 🛠️ 系统级安装（可选，仅 Linux）
 
-安装系统级 GUI 工具（Docker、Chrome、飞书、微信），直接运行：
+安装系统级 GUI 工具（Docker、Chrome、VSCode、微信），直接运行：
 
 ```sh
 bin/install-via-ansible
@@ -156,8 +156,8 @@ bin/install-via-ansible
 |---|---|---|
 | Nix 提示找不到新生成的 host 文件 | `git add hosts/<username>.<platform>.nix` | [OPERATIONS.md §11.1](docs/OPERATIONS.md#111-nix-提示找不到新生成的-host-文件) |
 | `nix fmt` 报错 `does not provide attribute 'formatter...'` | 确认 `flake.nix` 的 `systems` 包含当前架构 | [OPERATIONS.md §11.2](docs/OPERATIONS.md#112-运行-nix-fmt-报错-does-not-provide-attribute-formatter) |
-| Docker 安装后仍需要 `sudo` | `newgrp docker` 或重新登录 | [OPERATIONS.md §11.4](docs/OPERATIONS.md#114-docker-安装后仍需要-sudo) |
-| 微信安装后缺少依赖 | `sudo apt --fix-broken install` | [OPERATIONS.md §11.5](docs/OPERATIONS.md#115-微信安装后缺少依赖) |
+| Docker 安装后仍需要 `sudo` | `newgrp docker` 或重新登录 | [OPERATIONS.md §11.3](docs/OPERATIONS.md#113-docker-安装后仍需要-sudo) |
+| 微信安装后缺少依赖 | `sudo apt --fix-broken install` | [OPERATIONS.md §11.4](docs/OPERATIONS.md#114-微信安装后缺少依赖) |
 
 ---
 
