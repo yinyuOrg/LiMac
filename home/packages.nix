@@ -11,7 +11,6 @@
     ./profiles/cpp.nix
     ./profiles/embedded.nix
     ./profiles/containers.nix
-    ./profiles/ide.nix
   ];
 
   options.profiles = {
@@ -50,17 +49,11 @@
       default = true;
       description = "启用容器/K8s工具";
     };
-    ide.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "启用本地 IDE 编辑器";
-    };
   };
 
   config.nixpkgs.config.allowUnfreePredicate =
     pkg:
     builtins.elem (lib.getName pkg) [
       "claude-code"
-      "vscode"
     ];
 }

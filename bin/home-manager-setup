@@ -170,7 +170,6 @@ EOF
   home.username = "${current_user}";
 
   profiles = {
-    ide.enable = false;        # WSL 环境下通常不使用本地 GUI VS Code
     embedded.enable = false;   # WSL 环境下不直接物理调试板子
     containers.enable = false; # WSL 环境下建议与 Windows 的 Docker Desktop 整合
   };

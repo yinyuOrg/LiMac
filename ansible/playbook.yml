@@ -11,18 +11,13 @@
     apt_arch_map:
       x86_64: amd64
       aarch64: arm64
-    apt_arch: "{{ apt_arch_map[ansible_architecture] | default(ansible_architecture) }}"
+    apt_arch: "{{ apt_arch_map[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
 
   pre_tasks:
     - name: Fail on non-Debian systems
       ansible.builtin.fail:
         msg: "此 playbook 仅支持 Debian/Ubuntu 系统"
-      when: ansible_os_family != "Debian"
-
-    - name: Ensure Feishu URL is updated
-      ansible.builtin.fail:
-        msg: "请更新 ansible/vars/default.yml 中的 feishu_deb_url 为飞书官网最新下载地址：https://www.feishu.cn/download"
-      when: feishu_deb_url == "https://www.feishu.cn/download/Feishu-linux_x64.deb"
+      when: ansible_facts['os_family'] != "Debian"
 
   tasks:
     - name: Update apt cache
@@ -37,12 +32,16 @@
           - curl
           - gnupg
           - ca-certificates
-          - software-properties-common
         state: present
       become: yes
 
     - name: Install Docker
       block:
+        - name: Remove legacy Docker .list repository
+          ansible.builtin.file:
+            path: /etc/apt/sources.list.d/docker.list
+            state: absent
+
         - name: Add Docker GPG key
           ansible.builtin.get_url:
             url: https://download.docker.com/linux/debian/gpg
@@ -50,10 +49,18 @@
             mode: '0644'
 
         - name: Add Docker APT repository
-          ansible.builtin.apt_repository:
-            repo: "deb [arch={{ apt_arch }} signed-by=/usr/share/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
-            filename: docker
+          ansible.builtin.deb822_repository:
+            name: docker
+            types: deb
+            uris: https://download.docker.com/linux/debian
+            suites: "{{ ansible_facts['distribution_release'] }}"
+            components: stable
+            signed_by: /usr/share/keyrings/docker.asc
             state: present
+            enabled: true
+
+        - name: Update apt cache after adding Docker repository
+          ansible.builtin.apt:
             update_cache: yes
 
         - name: Install Docker packages
@@ -68,13 +75,18 @@
 
         - name: Add user to docker group
           ansible.builtin.user:
-            name: "{{ ansible_user_id }}"
+            name: "{{ ansible_facts['user_id'] }}"
             groups: docker
             append: yes
       become: yes
 
     - name: Install Google Chrome
       block:
+        - name: Remove legacy Google Chrome .list repository
+          ansible.builtin.file:
+            path: /etc/apt/sources.list.d/google-chrome.list
+            state: absent
+
         - name: Add Google GPG key
           ansible.builtin.get_url:
             url: https://dl.google.com/linux/linux_signing_key.pub
@@ -82,10 +94,18 @@
             mode: '0644'
 
         - name: Add Google Chrome repository
-          ansible.builtin.apt_repository:
-            repo: "deb [arch={{ apt_arch }} signed-by=/usr/share/keyrings/google-chrome.asc] https://dl.google.com/linux/chrome/deb/ stable main"
-            filename: google-chrome
+          ansible.builtin.deb822_repository:
+            name: google-chrome
+            types: deb
+            uris: https://dl.google.com/linux/chrome/deb/
+            suites: stable
+            components: main
+            signed_by: /usr/share/keyrings/google-chrome.asc
             state: present
+            enabled: true
+
+        - name: Update apt cache after adding Google Chrome repository
+          ansible.builtin.apt:
             update_cache: yes
 
         - name: Install Google Chrome
@@ -94,17 +114,37 @@
             state: present
       become: yes
 
-    - name: Install Feishu
+    - name: Install VSCode
       block:
-        - name: Download Feishu .deb
+        - name: Remove legacy VSCode .list repository
+          ansible.builtin.file:
+            path: /etc/apt/sources.list.d/vscode.list
+            state: absent
+
+        - name: Add Microsoft GPG key
           ansible.builtin.get_url:
-            url: "{{ feishu_deb_url }}"
-            dest: /tmp/feishu.deb
+            url: https://packages.microsoft.com/keys/microsoft.asc
+            dest: /usr/share/keyrings/microsoft.asc
             mode: '0644'
 
-        - name: Install Feishu
+        - name: Add VSCode APT repository
+          ansible.builtin.deb822_repository:
+            name: vscode
+            types: deb
+            uris: https://packages.microsoft.com/repos/code
+            suites: stable
+            components: main
+            signed_by: /usr/share/keyrings/microsoft.asc
+            state: present
+            enabled: true
+
+        - name: Update apt cache after adding VSCode repository
           ansible.builtin.apt:
-            deb: /tmp/feishu.deb
+            update_cache: yes
+
+        - name: Install VSCode
+          ansible.builtin.apt:
+            name: code
             state: present
       become: yes
 

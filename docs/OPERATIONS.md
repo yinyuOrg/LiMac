@@ -259,7 +259,7 @@ ansible-playbook ansible/playbook.yml -i ansible/inventory.ini --ask-become-pass
 Ansible 会安装：
 - Docker
 - Google Chrome
-- 飞书（Feishu）
+- VSCode
 - 微信（WeChat）
 
 ---
@@ -327,7 +327,7 @@ imports = [
 
 ### 7.3 系统级 GUI 软件
 
-Chrome、飞书、微信等通过 Ansible 安装。修改 `ansible/vars/default.yml` 或 `ansible/playbook.yml`。
+Chrome、VSCode、微信等通过 Ansible 安装。修改 `ansible/vars/default.yml` 或 `ansible/playbook.yml`。
 
 ---
 
@@ -344,18 +344,11 @@ Chrome、飞书、微信等通过 Ansible 安装。修改 `ansible/vars/default.
 
 ---
 
-## 9. 更新飞书/微信下载地址
+## 9. 更新微信下载地址
 
-飞书和微信的 `.deb` 下载地址会更新。请定期维护 `ansible/vars/default.yml`。
+微信的 `.deb` 下载地址可能会更新。请定期维护 `ansible/vars/default.yml` 中的 `wechat_deb_url`。
 
-### 9.1 获取飞书地址
-
-1. 打开 https://www.feishu.cn/download
-2. 选择 Linux 桌面客户端
-3. 点击下载，从浏览器下载记录或开发者工具中复制 `.deb` 直链
-4. 更新 `ansible/vars/default.yml` 中的 `feishu_deb_url`
-
-### 9.2 获取微信地址
+### 9.1 获取微信地址
 
 微信地址通常比较稳定：
 
@@ -396,11 +389,7 @@ git add hosts/<username>.<platform>.nix
 
 确保 `flake.nix` 中的 `systems` 包含当前机器架构。例如 macOS Apple Silicon 需要 `aarch64-darwin`。
 
-### 11.3 Ansible 提示飞书 URL 未更新
-
-这是预期行为。请按 [第 9 节](#9-更新飞书微信下载地址) 更新 `ansible/vars/default.yml` 中的 `feishu_deb_url`。
-
-### 11.4 Docker 安装后仍需要 sudo
+### 11.3 Docker 安装后仍需要 sudo
 
 运行：
 
@@ -410,7 +399,7 @@ newgrp docker
 
 或重新登录。
 
-### 11.5 微信安装后缺少依赖
+### 11.4 微信安装后缺少依赖
 
 Ansible 最后会自动运行 `apt --fix-broken install`。如果仍失败，可以手动运行：
 
