@@ -28,10 +28,24 @@
 - 🖥️ **跨平台统一**：一套配置覆盖 Linux、macOS 与 WSL2。
 - ❄️ **声明式环境**：基于 Nix Flakes，环境可复现、可版本控制。
 - 🏠 **Home Manager**：集中管理 Shell、Git、工具链与 dotfiles。
-- ⚡ **自动 Host 生成**：运行一条脚本即可生成属于你的 `hosts/<username>.<platform>.nix`。
+- ⚡ **自动 Host 生成**：运行一条脚本即可在 `~/.config/limac/host.nix` 生成属于你的本地配置。
 - 📦 **分领域包管理**：AI、Python、Java、C++、嵌入式、容器、IDE 按需启用。
 - 🐧 **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、VSCode、微信（仅 Linux）。
 - 🎨 **内置维护工具**：`nix fmt` 格式化、`bin/update-flake` 更新依赖。
+
+---
+
+<a id="verified-platforms"></a>
+## ✅ 已验证平台
+
+| 系统 | 状态 | 说明 |
+|---|---|---|
+| `x86_64-linux` | ✅ 已验证 | 主流 Linux 桌面/服务器 |
+| `aarch64-darwin` | ✅ 已验证 | Apple Silicon Mac（M1/M2/M3） |
+| `aarch64-linux` | ⏳ 未验证 | ARM Linux，理论上支持 |
+| `x86_64-darwin` | ⏳ 未验证 | Intel Mac，理论上支持 |
+
+> `aarch64-linux`和`x86_64-darwin`尚未实测，欢迎反馈
 
 ---
 
@@ -39,6 +53,7 @@
 ## 📋 目录
 
 - [✨ 特性](#features)
+- [✅ 已验证平台](#verified-platforms)
 - [🚀 快速开始](#quick-start)
 - [🛠️ 系统级安装（可选，仅 Linux）](#system-install)
 - [🔄 日常维护](#daily-ops)
@@ -98,10 +113,8 @@ bin/home-manager-setup
 
 1. **检查依赖**：确认 Nix、Git 与 Nix daemon 可访问。
 2. **开启 Flakes**：自动配置 `~/.config/nix/nix.conf`。
-3. **生成专属配置文件**：根据当前系统用户名和平台，在 `hosts/` 目录下创建配置：
-    - Linux: `hosts/<username>.linux.nix`
-    - macOS: `hosts/<username>.darwin.nix`
-4. **自动加入 Git 跟踪**：Nix Flakes 纯评估要求文件必须被 Git 跟踪，脚本会自动执行 `git add`。
+3. **生成本地专属配置文件**：根据当前系统用户名和平台，在 `~/.config/limac/host.nix` 创建配置。
+4. **使用 `--impure` 应用**：脚本会带 `--impure` 运行 home-manager，使 flake 能够读取仓库外的本地配置。
 5. **直接应用**：一键应用所有用户包与环境配置。
 
 ### 第三步：更换默认 Shell
@@ -141,8 +154,8 @@ bin/install-via-ansible
 |---|---|---|
 | **格式化配置** | `nix fmt` | 格式化所有 Nix 文件 |
 | **升级所有依赖** | `bin/update-flake` | 更新 `flake.lock` 并创建备份 |
-| **Linux 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.linux` | 修改配置后重新应用 |
-| **macOS 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.darwin` | 修改配置后重新应用 |
+| **Linux 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<system> --impure` | 修改配置后重新应用，如 `#x86_64-linux` |
+| **macOS 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<system> --impure` | 修改配置后重新应用，如 `#aarch64-darwin` |
 | **检查 Flake 结构** | `nix flake check --no-build` | 验证配置语法与结构 |
 | **查看所有配置名** | `nix flake show` | 列出 flake 提供的所有 outputs |
 | **查看 Home Manager 新闻** | `home-manager news` | 查看更新日志与提示 |
@@ -154,7 +167,7 @@ bin/install-via-ansible
 
 | 问题 | 快速解决 | 详情 |
 |---|---|---|
-| Nix 提示找不到新生成的 host 文件 | `git add hosts/<username>.<platform>.nix` | [OPERATIONS.md §11.1](docs/OPERATIONS.md#111-nix-提示找不到新生成的-host-文件) |
+| Nix 提示找不到本地 host 文件 | 确认 `~/.config/limac/host.nix` 存在，且命令带 `--impure` | [OPERATIONS.md §11.1](docs/OPERATIONS.md#111-nix-提示找不到本地-host-文件) |
 | `nix fmt` 报错 `does not provide attribute 'formatter...'` | 确认 `flake.nix` 的 `systems` 包含当前架构 | [OPERATIONS.md §11.2](docs/OPERATIONS.md#112-运行-nix-fmt-报错-does-not-provide-attribute-formatter) |
 | Docker 安装后仍需要 `sudo` | `newgrp docker` 或重新登录 | [OPERATIONS.md §11.3](docs/OPERATIONS.md#113-docker-安装后仍需要-sudo) |
 | 微信安装后缺少依赖 | `sudo apt --fix-broken install` | [OPERATIONS.md §11.4](docs/OPERATIONS.md#114-微信安装后缺少依赖) |

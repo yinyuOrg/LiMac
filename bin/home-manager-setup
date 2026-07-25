@@ -1,5 +1,5 @@
 #!/bin/bash
-# home-manager-setup.sh - 自动化设置 LiMac Home Manager (动态生成主仓库配置版)
+# home-manager-setup.sh - 自动化设置 LiMac Home Manager（个人配置外置版）
 
 set -e  # 遇到错误立即退出
 
@@ -66,22 +66,47 @@ EOF
     log_success "Nix 实验性功能已启用"
 }
 
-# 交互式配置并生成 host 文件
-generate_host_config() {
-    local current_user=$(whoami)
-    local platform="linux"
-    if [ "$IS_DARWIN" = true ]; then
-        platform="darwin"
-    fi
+# 根据当前系统确定 flake 配置名
+get_system_name() {
+    local os_type
+    local machine
+    os_type="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    machine="$(uname -m)"
 
-    local host_file="hosts/${current_user}.${platform}.nix"
+    case "$os_type" in
+        linux)
+            case "$machine" in
+                x86_64)        echo "x86_64-linux" ;;
+                aarch64|arm64) echo "aarch64-linux" ;;
+                *)             echo "x86_64-linux" ;;
+            esac
+            ;;
+        darwin)
+            case "$machine" in
+                x86_64)        echo "x86_64-darwin" ;;
+                aarch64|arm64) echo "aarch64-darwin" ;;
+                *)             echo "aarch64-darwin" ;;
+            esac
+            ;;
+        *)
+            echo "x86_64-linux"
+            ;;
+    esac
+}
+
+# 交互式配置并生成本地 host 文件
+generate_host_config() {
+    local current_user
+    current_user=$(whoami)
+    local local_config_dir="$HOME/.config/limac"
+    local host_file="$local_config_dir/host.nix"
 
     if [ -f "$host_file" ]; then
-        log_info "检测到已存在 Host 配置文件: $host_file，将直接使用该配置。"
+        log_info "检测到已存在本地 Host 配置文件: $host_file，将直接使用该配置。"
         return 0
     fi
 
-    log_info "开始为用户 '$current_user' 创建 Host 配置文件..."
+    log_info "开始为用户 '$current_user' 创建本地 Host 配置文件..."
 
     # 获取 Git 默认信息
     local git_username=""
@@ -113,8 +138,8 @@ generate_host_config() {
     fi
 
     log_info "正在生成 $host_file..."
-    
-    mkdir -p hosts
+
+    mkdir -p "$local_config_dir"
 
     # 检测是否为 WSL
     local is_wsl=false
@@ -158,10 +183,6 @@ generate_host_config() {
     user.name = "${git_username}";
     user.email = "${git_email}";
   };
-
-  imports = [
-    ../home/platforms/darwin.nix
-  ];
 }
 EOF
     elif [ "$use_wsl_optimization" = true ]; then
@@ -193,19 +214,7 @@ EOF
 EOF
     fi
 
-    log_success "Host 配置文件已成功生成: $host_file"
-
-    # 检查是否在 Git 仓库中并自动暂存新生成的配置文件
-    if git rev-parse --is-inside-work-tree &>/dev/null; then
-        log_info "正在自动执行 'git add $host_file' 以使 Nix Flakes 能够读取新配置文件..."
-        if git add "$host_file" 2>/dev/null; then
-            log_success "配置文件已自动成功加入 Git 跟踪！"
-        else
-            log_warning "未能自动执行 'git add'，请手动执行 'git add $host_file' 否则 Nix 构建可能会报错。"
-        fi
-    else
-        log_warning "当前目录不属于 Git 仓库，Nix Flakes 可能会在评估时忽略未跟踪的文件。如果构建报错，请执行 'git init && git add $host_file'。"
-    fi
+    log_success "本地 Host 配置文件已成功生成: $host_file"
 }
 
 # 检查 Nix daemon 可访问性（多用户安装常见权限问题）
@@ -255,18 +264,10 @@ check_nix_daemon_access() {
 
 # 应用 Home Manager 配置
 apply_home_manager() {
-    local current_user=$(whoami)
-    local platform="linux"
-    if [ "$IS_DARWIN" = true ]; then
-        platform="darwin"
-    fi
+    log_info "应用 Home Manager 配置, 配置名: $SYSTEM_NAME"
 
-    local config_name="${current_user}.${platform}"
-
-    log_info "应用 Home Manager 配置, 配置名: $config_name"
-
-    # 应用配置
-    nix run "nixpkgs#home-manager" -- switch --flake ".#$config_name"
+    # 使用 --impure 以允许 flake 读取仓库外的 ~/.config/limac/host.nix
+    nix run "nixpkgs#home-manager" -- switch --flake ".#$SYSTEM_NAME" --impure
 
     log_success "Home Manager 配置应用完成"
 }
@@ -283,7 +284,8 @@ configure_konsole() {
         return
     fi
 
-    local current_user=$(whoami)
+    local current_user
+    current_user=$(whoami)
     local fish_path="/home/$current_user/.nix-profile/bin/fish"
 
     if [ ! -f "$fish_path" ]; then
@@ -314,12 +316,8 @@ EOF
 
 # 显示完成信息
 show_completion() {
-    local current_user=$(whoami)
-    local platform="linux"
-    if [ "$IS_DARWIN" = true ]; then
-        platform="darwin"
-    fi
-    local config_name="${current_user}.${platform}"
+    local current_user
+    current_user=$(whoami)
 
     local fish_path
     if [ "$IS_DARWIN" = true ]; then
@@ -333,7 +331,7 @@ show_completion() {
     echo
     log_info "后续操作："
     log_info "1. 格式化配置: nix fmt"
-    log_info "2. 更新配置: nix run \"nixpkgs#home-manager\" -- switch --flake .#$config_name"
+    log_info "2. 更新配置: nix run \"nixpkgs#home-manager\" -- switch --flake .#$SYSTEM_NAME --impure"
     log_info "3. 查看新闻: home-manager news"
     echo
     log_info "重要提示："
@@ -388,9 +386,10 @@ EOF
     if [ "$OS_TYPE" = "darwin" ]; then
         IS_DARWIN=true
     fi
+    SYSTEM_NAME=$(get_system_name)
 
     log_info "开始设置 LiMac Home Manager"
-    log_info "检测到平台: $(uname) ($OS_TYPE)"
+    log_info "检测到平台: $(uname) ($OS_TYPE / $(uname -m))"
 
     # 执行步骤
     check_dependencies

@@ -39,7 +39,7 @@
 │   └── platforms/         # 平台特定配置
 │       ├── linux.nix
 │       └── darwin.nix
-├── hosts/                 # 用户特定本地配置文件目录（动态发现，不提交到主仓库）
+├── hosts/                 # 保留空目录（个人配置已外置到 ~/.config/limac/host.nix）
 │   └── .gitkeep           # 保持 hosts 目录存在
 └── ansible/               # 系统级安装（仅 Debian/Ubuntu）
     ├── playbook.yml
@@ -220,12 +220,10 @@ bin/home-manager-setup
 
 脚本会交互式引导你完成：
 1. 检查并开启 Nix Flakes 实验性特性。
-2. 自动获取当前系统的用户名和平台。
+2. 自动获取当前系统的用户名、平台与架构。
 3. 提示输入 Git 全局的用户名和邮箱。
-4. 自动在 `hosts/` 目录下生成专属配置文件：
-   - Linux: `hosts/<username>.linux.nix`
-   - macOS: `hosts/<username>.darwin.nix`
-5. **自动加入 Git 跟踪**：因为 Nix Flakes 只读取被 Git 跟踪的文件，脚本会自动帮你执行 `git add hosts/<username>.<platform>.nix` 进行暂存。
+4. 在 `~/.config/limac/host.nix` 生成你的本地专属配置文件。
+5. **使用 `--impure` 应用**：flake 通过 `--impure` 读取仓库外的本地配置，无需也不会把个人信息提交进仓库。
 6. 自动直接应用当前主仓库的配置。
 
 ---
@@ -234,14 +232,20 @@ bin/home-manager-setup
 
 ### 5.1 重新应用 Home Manager
 
-若在 `home/` 目录下修改了软件配置（如增删包、改 fish alias），直接运行以下命令应用（将 `<username>` 替换为你的当前用户名）：
+若在 `home/` 目录下修改了软件配置（如增删包、改 fish alias），直接运行以下命令应用（将 `x86_64-linux` / `aarch64-darwin` 等替换为你的实际系统）：
 
 ```sh
-# Linux
-nix run "nixpkgs#home-manager" -- switch --flake .#<username>.linux
+# Linux x86_64
+nix run "nixpkgs#home-manager" -- switch --flake .#x86_64-linux --impure
 
-# macOS (Apple Silicon)
-nix run "nixpkgs#home-manager" -- switch --flake .#<username>.darwin
+# Linux aarch64
+nix run "nixpkgs#home-manager" -- switch --flake .#aarch64-linux --impure
+
+# macOS Apple Silicon
+nix run "nixpkgs#home-manager" -- switch --flake .#aarch64-darwin --impure
+
+# macOS Intel
+nix run "nixpkgs#home-manager" -- switch --flake .#x86_64-darwin --impure
 ```
 
 ### 5.2 应用 Ansible 系统级配置 (仅 Linux)
@@ -333,14 +337,14 @@ Chrome、VSCode、微信等通过 Ansible 安装。修改 `ansible/vars/default.
 
 ## 8. 添加新 Host / 新用户
 
-由于本项目已完全迁移为**纯动态生成**机制，多用户或新设备的添加已极其简化：
+由于个人配置已外置到 `~/.config/limac/host.nix`，多用户或新设备的添加已极其简化：
 
 1. **在新设备/新用户环境下**，直接运行初始化脚本：
    ```sh
    bin/home-manager-setup
    ```
-2. 脚本会自动为你生成正确的 `hosts/<username>.<platform>.nix` 配置文件。
-3. 执行 `git add` 并按下 `y` 确认，`flakeModules/home-manager.nix` 会**自动发现并注册**你的新配置名，无需手动修改任何 Nix 代码。
+2. 脚本会自动为你生成正确的 `~/.config/limac/host.nix` 配置文件。
+3. `flakeModules/home-manager.nix` 已提供固定的系统级输出（`x86_64-linux`、`aarch64-linux`、`x86_64-darwin`、`aarch64-darwin`），脚本会自动选择对应输出并带 `--impure` 应用，无需手动修改任何 Nix 代码。
 
 ---
 
@@ -378,11 +382,16 @@ wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm6
 
 ## 11. 常见问题
 
-### 11.1 Nix 提示找不到新生成的 host 文件
+### 11.1 Nix 提示找不到本地 host 文件
 
-虽然 `bin/home-manager-setup` 会自动执行此操作，但如果是你手动创建的或在未受 Git 跟踪的分支中，Nix Flakes 只会读取已加入 Git 跟踪的文件。请确保已在终端执行：
+本项目把个人配置放在仓库外的 `~/.config/limac/host.nix`。请确认：
+
+1. 该文件已存在（可重新运行 `bin/home-manager-setup` 生成）。
+2. 所有 `home-manager switch` 命令都带有 `--impure`，否则 Nix 不会读取仓库外的文件。
+
+示例：
 ```sh
-git add hosts/<username>.<platform>.nix
+nix run "nixpkgs#home-manager" -- switch --flake .#x86_64-linux --impure
 ```
 
 ### 11.2 运行 `nix fmt` 报错 `does not provide attribute 'formatter...'`

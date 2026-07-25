@@ -4,36 +4,6 @@
   ...
 }:
 let
-  hostsDir = ../hosts;
-  hostFiles = lib.filterAttrs (name: type: type == "regular" && lib.hasSuffix ".nix" name) (
-    builtins.readDir hostsDir
-  );
-
-  # Parse a filename like "alice.linux.nix" into:
-  #   username = "alice"; platform = "linux"; system = "x86_64-linux"
-  parseHostFile =
-    name:
-    let
-      base = lib.removeSuffix ".nix" name;
-      parts = lib.splitString "." base;
-      hasPlatform = builtins.length parts > 1;
-      platform = if hasPlatform then lib.last parts else "linux";
-      username = if hasPlatform then lib.concatStringsSep "." (lib.init parts) else base;
-      system =
-        {
-          linux = "x86_64-linux";
-          darwin = "aarch64-darwin";
-          aarch64-linux = "aarch64-linux";
-          x86_64-darwin = "x86_64-darwin";
-        }
-        .${platform} or "x86_64-linux";
-    in
-    {
-      inherit username system;
-      configName = base;
-      path = hostsDir + "/${name}";
-    };
-
   homeModules.default =
     {
       config,
@@ -42,32 +12,48 @@ let
       ...
     }:
     {
-      # Sensible default for `home.homeDirectory`
+      # Provide a fallback username so that pure evaluation (e.g. nix flake check)
+      # succeeds even when the per-machine config is not available.
+      home.username = lib.mkDefault "limac";
+
       home.homeDirectory = lib.mkDefault "/${
         if pkgs.stdenv.isDarwin then "Users" else "home"
       }/${config.home.username}";
 
-      imports = [ ../home ];
-    };
-
-  mkHomeConfig =
-    name: _:
-    let
-      info = parseHostFile name;
-    in
-    inputs.home-manager.lib.homeManagerConfiguration {
-      pkgs = inputs.nixpkgs.legacyPackages.${info.system};
-      modules = [
-        homeModules.default
-        info.path
+      imports = [
+        ../home
+        ../home/platforms/linux.nix
+        ../home/platforms/darwin.nix
       ];
     };
+
+  # When running with --impure, the per-machine config living outside the repo
+  # is imported here. In pure mode HOME is empty, so it is skipped.
+  userHome = builtins.getEnv "HOME";
+  localHostFile = "${userHome}/.config/limac/host.nix";
+  hasLocalHost = userHome != "" && builtins.pathExists localHostFile;
+
+  mkHomeConfig =
+    name: system:
+    inputs.home-manager.lib.homeManagerConfiguration {
+      pkgs = inputs.nixpkgs.legacyPackages.${system};
+      modules = [
+        homeModules.default
+      ] ++ lib.optional hasLocalHost localHostFile;
+    };
+
+  platforms = {
+    x86_64-linux = "x86_64-linux";
+    aarch64-linux = "aarch64-linux";
+    x86_64-darwin = "x86_64-darwin";
+    aarch64-darwin = "aarch64-darwin";
+  };
 in
 {
   flake = {
     inherit homeModules;
     homeConfigurations = lib.mapAttrs' (
-      name: value: lib.nameValuePair (parseHostFile name).configName (mkHomeConfig name value)
-    ) hostFiles;
+      name: system: lib.nameValuePair name (mkHomeConfig name system)
+    ) platforms;
   };
 }
