@@ -1,10 +1,58 @@
-# Home Managed by LiMac
+<div align="center">
+<pre>
+ _   _               __  __
+| | | | ___  _ __   |  \/  | __ _ _ __   __ _  __ _  ___ _ __ ___
+| |_| |/ _ \| '_ \  | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__/ __|
+|  _  | (_) | |_) | | |  | | (_| | | | | (_| | (_| |  __/ |  \__ \
+|_| |_|\___/| .__/  |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|  |___/
+            |_|                               |___/
+</pre>
 
-跨平台用户开发环境统一配置，基于 **Nix Flakes** 与 **Home Manager**。
+<h1>LiMac</h1>
+
+<p>跨平台开发环境，一处配置，处处同步</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Nix-Flakes-5277C3?logo=nixos&logoColor=white" alt="Nix Flakes">
+  <img src="https://img.shields.io/badge/Home%20Manager-enabled-6AB04C?logo=nixos&logoColor=white" alt="Home Manager">
+  <img src="https://img.shields.io/badge/Platforms-x86__64--linux%20%7C%20aarch64--linux%20%7C%20x86__64--darwin%20%7C%20aarch64--darwin-lightgrey" alt="Supported Platforms">
+  <a href="docs/OPERATIONS.md"><img src="https://img.shields.io/badge/Docs-OPERATIONS.md-orange" alt="Docs"></a>
+</p>
+</div>
 
 ---
 
-## 🚀 3分钟快速开始
+<a id="features"></a>
+## ✨ 特性
+
+- 🖥️ **跨平台统一**：一套配置覆盖 Linux、macOS 与 WSL2。
+- ❄️ **声明式环境**：基于 Nix Flakes，环境可复现、可版本控制。
+- 🏠 **Home Manager**：集中管理 Shell、Git、工具链与 dotfiles。
+- ⚡ **自动 Host 生成**：运行一条脚本即可生成属于你的 `hosts/<username>.<platform>.nix`。
+- 📦 **分领域包管理**：AI、Python、Java、C++、嵌入式、容器、IDE 按需启用。
+- 🐧 **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、飞书、微信（仅 Linux）。
+- 🎨 **内置维护工具**：`nix fmt` 格式化、`bin/update-flake` 更新依赖。
+
+---
+
+<a id="toc"></a>
+## 📋 目录
+
+- [✨ 特性](#features)
+- [🚀 快速开始](#quick-start)
+- [🛠️ 系统级安装（可选，仅 Linux）](#system-install)
+- [🔄 日常维护](#daily-ops)
+- [❓ 常见问题速查](#faq)
+- [📖 更多参考](#more-docs)
+- [📜 许可证与反馈](#license)
+
+---
+
+<a id="quick-start"></a>
+## 🚀 快速开始
+
+> **预计时间**：3 分钟  
+> **前置条件**：已安装 `git`，终端可以访问外部网络（Nix 官方缓存），并且当前用户具有 `sudo` 权限。
 
 ### 第一步：安装 Nix
 
@@ -30,42 +78,55 @@
 
     > 重启后可通过 `id` 命令确认输出中包含 `nix-users`。若临时想在不重启的情况下继续，可在当前终端执行 `newgrp nix-users`。
 
-*(若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/OPERATIONS.md#2-高级-nix-安装与配置指导))*
-
 #### macOS (Apple Silicon)
 
 ```sh
 curl -L https://nixos.org/nix/install | sh -s -- --daemon
 ```
 
+> 若遇网络问题或需要设置代理，请参阅 [高级 Nix 安装与配置指导](docs/OPERATIONS.md#2-高级-nix-安装与配置指导)。
+
 ### 第二步：配置初始化与应用
 
-全局翻墙后，在克隆好的本仓库根目录下直接运行：
+在克隆好的本仓库根目录下直接运行：
 
 ```sh
 bin/home-manager-setup
 ```
 
-1.  **自动生成专属配置文件**：脚本会根据当前系统用户名和平台，在 `hosts/` 目录下创建你的 Host 配置：
-    *   Linux: `hosts/<username>.linux.nix`
-    *   macOS: `hosts/<username>.darwin.nix`
-2.  **自动加入 Git 跟踪**：因为 Nix Flakes 纯评估安全限制，脚本会自动将新生成的配置文件通过 `git add` 暂存，省去手动操作。
-3.  **直接应用**：一键自动应用所有用户包与环境配置。
+脚本会交互式完成：
+
+1. **检查依赖**：确认 Nix、Git 与 Nix daemon 可访问。
+2. **开启 Flakes**：自动配置 `~/.config/nix/nix.conf`。
+3. **生成专属配置文件**：根据当前系统用户名和平台，在 `hosts/` 目录下创建配置：
+    - Linux: `hosts/<username>.linux.nix`
+    - macOS: `hosts/<username>.darwin.nix`
+4. **自动加入 Git 跟踪**：Nix Flakes 纯评估要求文件必须被 Git 跟踪，脚本会自动执行 `git add`。
+5. **直接应用**：一键应用所有用户包与环境配置。
 
 ### 第三步：更换默认 Shell
 
-要享受所有 Nix 软件与 Fish 别名，需使用 Home Manager 管理的 Shell。
-*   **Fish 路径**：
-    *   Linux: `/home/<username>/.nix-profile/bin/fish`
-    *   macOS: `/Users/<username>/.nix-profile/bin/fish`
+要享受所有 Nix 软件与 Fish 别名，需将终端 Shell 切换为 Home Manager 管理的 Fish：
 
-*(具体终端如 Konsole、iTerm2 或 VS Code 终端的切换步骤请参考 [终端 Shell 设置指导](docs/OPERATIONS.md#3-终端-shell-设置指导))*
+- **Fish 路径**：
+  - Linux: `/home/<username>/.nix-profile/bin/fish`
+  - macOS: `/Users/<username>/.nix-profile/bin/fish`
+
+- **WSL2 推荐做法**：直接将其设为登录 Shell：
+  ```sh
+  sudo sh -c "echo $(realpath ~/.nix-profile/bin/fish) >> /etc/shells"
+  chsh -s ~/.nix-profile/bin/fish
+  ```
+  退出后执行 `wsl --shutdown`，重新进入 WSL 即可生效。
+
+> 具体终端如 Konsole、iTerm2 或 VS Code 终端的切换步骤，请参考 [终端 Shell 设置指导](docs/OPERATIONS.md#3-终端-shell-设置指导)。
 
 ---
 
-## 🛠️ 系统级安装 (可选，仅 Linux)
+<a id="system-install"></a>
+## 🛠️ 系统级安装（可选，仅 Linux）
 
-安装系统级 GUI 工具（Docker, Chrome, 飞书, 微信），直接运行：
+安装系统级 GUI 工具（Docker、Chrome、飞书、微信），直接运行：
 
 ```sh
 bin/install-via-ansible
@@ -73,17 +134,43 @@ bin/install-via-ansible
 
 ---
 
+<a id="daily-ops"></a>
 ## 🔄 日常维护
 
-| 目的 | 命令 |
-|---|---|
-| **格式化配置** | `nix fmt` |
-| **升级所有依赖** | `bin/update-flake` |
-| **Linux 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.linux` |
-| **macOS 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.darwin` |
+| 目的 | 命令 | 说明 |
+|---|---|---|
+| **格式化配置** | `nix fmt` | 格式化所有 Nix 文件 |
+| **升级所有依赖** | `bin/update-flake` | 更新 `flake.lock` 并创建备份 |
+| **Linux 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.linux` | 修改配置后重新应用 |
+| **macOS 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<username>.darwin` | 修改配置后重新应用 |
+| **检查 Flake 结构** | `nix flake check --no-build` | 验证配置语法与结构 |
+| **查看所有配置名** | `nix flake show` | 列出 flake 提供的所有 outputs |
+| **查看 Home Manager 新闻** | `home-manager news` | 查看更新日志与提示 |
 
 ---
 
+<a id="faq"></a>
+## ❓ 常见问题速查
+
+| 问题 | 快速解决 | 详情 |
+|---|---|---|
+| Nix 提示找不到新生成的 host 文件 | `git add hosts/<username>.<platform>.nix` | [OPERATIONS.md §11.1](docs/OPERATIONS.md#111-nix-提示找不到新生成的-host-文件) |
+| `nix fmt` 报错 `does not provide attribute 'formatter...'` | 确认 `flake.nix` 的 `systems` 包含当前架构 | [OPERATIONS.md §11.2](docs/OPERATIONS.md#112-运行-nix-fmt-报错-does-not-provide-attribute-formatter) |
+| Docker 安装后仍需要 `sudo` | `newgrp docker` 或重新登录 | [OPERATIONS.md §11.4](docs/OPERATIONS.md#114-docker-安装后仍需要-sudo) |
+| 微信安装后缺少依赖 | `sudo apt --fix-broken install` | [OPERATIONS.md §11.5](docs/OPERATIONS.md#115-微信安装后缺少依赖) |
+
+---
+
+<a id="more-docs"></a>
 ## 📖 更多参考
 
-项目结构、高级定制、如何新增软件包或用户，请参考 ➡️ [操作手册 (docs/OPERATIONS.md)](docs/OPERATIONS.md)。
+- 项目结构、高级定制、如何新增软件包或用户：➡️ [操作手册 (docs/OPERATIONS.md)](docs/OPERATIONS.md)
+
+---
+
+<a id="license"></a>
+## 📜 许可证与反馈
+
+本项目暂未指定开源许可证。
+
+如有问题、建议或发现 bug，欢迎通过仓库 issue 反馈。
