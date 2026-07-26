@@ -1,14 +1,12 @@
 <div align="center">
 <pre>
- _   _               __  __
-| | | | ___  _ __   |  \/  | __ _ _ __   __ _  __ _  ___ _ __ ___
-| |_| |/ _ \| '_ \  | |\/| |/ _` | '_ \ / _` |/ _` |/ _ \ '__/ __|
-|  _  | (_) | |_) | | |  | | (_| | | | | (_| | (_| |  __/ |  \__ \
-|_| |_|\___/| .__/  |_|  |_|\__,_|_| |_|\__,_|\__, |\___|_|  |___/
-            |_|                               |___/
+██╗     ██╗███╗   ███╗ █████╗  ██████╗
+██║     ██║████╗ ████║██╔══██╗██╔════╝
+██║     ██║██╔████╔██║███████║██║     
+██║     ██║██║╚██╔╝██║██╔══██║██║     
+███████╗██║██║ ╚═╝ ██║██║  ██║╚██████╗
+╚══════╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝
 </pre>
-
-<h1>LiMac</h1>
 
 <p>跨平台开发环境，一处配置，处处同步</p>
 
@@ -25,13 +23,13 @@
 <a id="features"></a>
 ## ✨ 特性
 
-- 🖥️ **跨平台统一**：一套配置覆盖 Linux、macOS 与 WSL2。
-- ❄️ **声明式环境**：基于 Nix Flakes，环境可复现、可版本控制。
-- 🏠 **Home Manager**：集中管理 Shell、Git、工具链与 dotfiles。
-- ⚡ **自动 Host 生成**：运行一条脚本即可在 `~/.config/limac/host.nix` 生成属于你的本地配置。
-- 📦 **分领域包管理**：AI、Python、Java、C++、嵌入式、容器、IDE 按需启用。
-- 🐧 **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、VSCode、微信（仅 Linux）。
-- 🎨 **内置维护工具**：`nix fmt` 格式化、`bin/update-flake` 更新依赖。
+- **跨平台统一**：一套配置覆盖 Linux、macOS 与 WSL2。
+- **声明式环境**：基于 Nix Flakes，环境可复现、可版本控制。
+- **Home Manager**：集中管理 Shell、Git、工具链与 dotfiles。
+- **自动 Host 生成**：运行一条脚本即可在 `~/.config/limac/host.nix` 生成属于你的本地配置。
+- **分领域包管理**：AI、Python、Java、C++、嵌入式、容器、IDE 按需启用。
+- **系统级 GUI 安装**：Ansible 一键安装 Docker、Chrome、VSCode、微信（仅 Linux）。
+- **内置维护工具**：`nix fmt` 格式化、`bin/update-flake` 更新依赖。
 
 ---
 
@@ -54,12 +52,22 @@
 
 - [✨ 特性](#features)
 - [✅ 已验证平台](#verified-platforms)
+- [🎬 效果预览](#preview)
 - [🚀 快速开始](#quick-start)
 - [🛠️ 系统级安装（可选，仅 Linux）](#system-install)
 - [🔄 日常维护](#daily-ops)
 - [❓ 常见问题速查](#faq)
 - [📖 更多参考](#more-docs)
 - [📜 许可证与反馈](#license)
+
+---
+
+<a id="preview"></a>
+## 🎬 效果预览
+
+<p align="center">
+  <img src="docs/show.gif" alt="LiMac 演示动画">
+</p>
 
 ---
 
