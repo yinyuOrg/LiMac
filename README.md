@@ -49,7 +49,6 @@
 
 <a id="toc"></a>
 ## 📋 目录
-
 - [✨ 特性](#features)
 - [✅ 已验证平台](#verified-platforms)
 - [🎬 效果预览](#preview)
