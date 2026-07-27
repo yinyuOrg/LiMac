@@ -191,6 +191,6 @@ bin/install-via-ansible
 <a id="license"></a>
 ## 📜 许可证与反馈
 
-本项目暂未指定开源许可证。
+<img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
 
 如有问题、建议或发现 bug，欢迎通过仓库 issue 反馈。
