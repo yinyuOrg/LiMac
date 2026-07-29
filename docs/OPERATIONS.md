@@ -36,11 +36,6 @@
 │   │   ├── embedded.nix
 │   │   ├── containers.nix
 │   │   └── ide.nix
-│   └── platforms/         # 平台特定配置
-│       ├── linux.nix
-│       └── darwin.nix
-├── hosts/                 # 保留空目录（个人配置已外置到 ~/.config/limac/host.nix）
-│   └── .gitkeep           # 保持 hosts 目录存在
 └── ansible/               # 系统级安装（仅 Debian/Ubuntu）
     ├── playbook.yml
     ├── inventory.ini
@@ -90,7 +85,7 @@ sudo usermod -aG nix-users $(whoami)
 #### Step 4: 联通性测试
 重启电脑后，直接运行以下命令测试：
 ```sh
-nix run --refresh git+https://gitee.com/XmacsLabs/goldfish?ref=main
+nix run nixpkgs#hello
 ```
 
 ---
@@ -132,14 +127,14 @@ Environment="HTTPS_PROXY=http://127.0.0.1:7890"
 sudo rm -rf /nix/var/nix/daemon-socket/socket
 sudo systemctl restart nix-daemon
 ```
-如果测试运行 `goldfish` 仍然无法通过，可安装 systemd 设置套件：
+如果测试运行 `hello` 仍然无法通过，可安装 systemd 设置套件：
 ```sh
 sudo apt install nix-setup-systemd
 ```
 
 #### 4. 带有代理的环境测试
 ```sh
-env HTTPS_PROXY=http://127.0.0.1:7890 nix run --refresh git+https://gitee.com/XmacsLabs/goldfish?ref=main
+env HTTPS_PROXY=http://127.0.0.1:7890 nix run nixpkgs#hello
 ```
 
 ---

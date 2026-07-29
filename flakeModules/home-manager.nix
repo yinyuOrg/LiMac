@@ -23,8 +23,6 @@ let
 
       imports = [
         ../home
-        ../home/platforms/linux.nix
-        ../home/platforms/darwin.nix
       ];
     };
 
