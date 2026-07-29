@@ -1,6 +1,7 @@
 {
   inputs,
   lib,
+  config,
   ...
 }:
 let
@@ -34,20 +35,18 @@ let
   hasLocalHost = userHome != "" && builtins.pathExists localHostFile;
 
   mkHomeConfig =
-    name: system:
+    _name: system:
     inputs.home-manager.lib.homeManagerConfiguration {
       pkgs = inputs.nixpkgs.legacyPackages.${system};
       modules = [
         homeModules.default
-      ] ++ lib.optional hasLocalHost localHostFile;
+      ]
+      ++ lib.optional hasLocalHost localHostFile;
     };
 
-  platforms = {
-    x86_64-linux = "x86_64-linux";
-    aarch64-linux = "aarch64-linux";
-    x86_64-darwin = "x86_64-darwin";
-    aarch64-darwin = "aarch64-darwin";
-  };
+  # platforms 来自 flake-parts 在 flake.nix 中声明的 systems，
+  # 这里直接派生以避免列表重复维护
+  platforms = lib.genAttrs config.systems (name: name);
 in
 {
   flake = {
