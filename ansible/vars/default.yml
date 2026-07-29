@@ -1,4 +1,50 @@
 ---
 # 系统级软件包下载地址
-# 微信 Linux 版下载地址
-wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
+wechat_deb_urls:
+  x86_64: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
+  aarch64: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb"
+
+# 系统级 APT 仓库列表（由 playbook 统一循环处理）
+# - name: 仓库标识
+# - legacy_list: 旧式 .list 路径，安装前清理
+# - key_url / key_dest: GPG 公钥来源与落盘路径
+# - uris / suites / components: deb822 仓库配置
+# - packages: 要安装的包
+# - arches (可选): 仅在该架构下启用，未列出的架构自动跳过
+apt_repos:
+  - name: docker
+    legacy_list: /etc/apt/sources.list.d/docker.list
+    key_url: https://download.docker.com/linux/debian/gpg
+    key_dest: /usr/share/keyrings/docker.asc
+    uris: https://download.docker.com/linux/debian
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: stable
+    packages:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+  - name: google-chrome
+    legacy_list: /etc/apt/sources.list.d/google-chrome.list
+    key_url: https://dl.google.com/linux/linux_signing_key.pub
+    key_dest: /usr/share/keyrings/google-chrome.asc
+    uris: https://dl.google.com/linux/chrome/deb/
+    suites: stable
+    components: main
+    packages:
+      - google-chrome-stable
+    # Google 仅发布 Chrome 的 amd64 包，ARM 上跳过
+    arches:
+      - amd64
+
+  - name: vscode
+    legacy_list: /etc/apt/sources.list.d/vscode.list
+    key_url: https://packages.microsoft.com/keys/microsoft.asc
+    key_dest: /usr/share/keyrings/microsoft.asc
+    uris: https://packages.microsoft.com/repos/code
+    suites: stable
+    components: main
+    packages:
+      - code

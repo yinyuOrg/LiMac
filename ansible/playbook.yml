@@ -1,5 +1,5 @@
 ---
-- name: Setup Debian 13 development environment
+- name: Setup Debian development environment
   hosts: localhost
   connection: local
   gather_facts: yes
@@ -12,6 +12,8 @@
       x86_64: amd64
       aarch64: arm64
     apt_arch: "{{ apt_arch_map[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
+    # 选当前架构对应的 WeChat deb URL；不支持的架构会变成空，相应任务由 when 跳过
+    wechat_deb_url: "{{ wechat_deb_urls[ansible_facts['architecture']] | default('') }}"
 
   pre_tasks:
     - name: Fail on non-Debian systems
@@ -35,117 +37,52 @@
         state: present
       become: yes
 
-    - name: Install Docker
-      block:
-        - name: Remove legacy Docker .list repository
-          ansible.builtin.file:
-            path: /etc/apt/sources.list.d/docker.list
-            state: absent
-
-        - name: Add Docker GPG key
-          ansible.builtin.get_url:
-            url: https://download.docker.com/linux/debian/gpg
-            dest: /usr/share/keyrings/docker.asc
-            mode: '0644'
-
-        - name: Add Docker APT repository
-          ansible.builtin.deb822_repository:
-            name: docker
-            types: deb
-            uris: https://download.docker.com/linux/debian
-            suites: "{{ ansible_facts['distribution_release'] }}"
-            components: stable
-            signed_by: /usr/share/keyrings/docker.asc
-            state: present
-            enabled: true
-
-        - name: Update apt cache after adding Docker repository
-          ansible.builtin.apt:
-            update_cache: yes
-
-        - name: Install Docker packages
-          ansible.builtin.apt:
-            name:
-              - docker-ce
-              - docker-ce-cli
-              - containerd.io
-              - docker-buildx-plugin
-              - docker-compose-plugin
-            state: present
-
-        - name: Add user to docker group
-          ansible.builtin.user:
-            name: "{{ ansible_facts['user_id'] }}"
-            groups: docker
-            append: yes
+    - name: Remove legacy .list repositories
+      ansible.builtin.file:
+        path: "{{ item.legacy_list }}"
+        state: absent
+      loop: "{{ apt_repos }}"
       become: yes
 
-    - name: Install Google Chrome
-      block:
-        - name: Remove legacy Google Chrome .list repository
-          ansible.builtin.file:
-            path: /etc/apt/sources.list.d/google-chrome.list
-            state: absent
-
-        - name: Add Google GPG key
-          ansible.builtin.get_url:
-            url: https://dl.google.com/linux/linux_signing_key.pub
-            dest: /usr/share/keyrings/google-chrome.asc
-            mode: '0644'
-
-        - name: Add Google Chrome repository
-          ansible.builtin.deb822_repository:
-            name: google-chrome
-            types: deb
-            uris: https://dl.google.com/linux/chrome/deb/
-            suites: stable
-            components: main
-            signed_by: /usr/share/keyrings/google-chrome.asc
-            state: present
-            enabled: true
-
-        - name: Update apt cache after adding Google Chrome repository
-          ansible.builtin.apt:
-            update_cache: yes
-
-        - name: Install Google Chrome
-          ansible.builtin.apt:
-            name: google-chrome-stable
-            state: present
+    - name: Add repository GPG keys
+      ansible.builtin.get_url:
+        url: "{{ item.key_url }}"
+        dest: "{{ item.key_dest }}"
+        mode: '0644'
+      loop: "{{ apt_repos }}"
       become: yes
 
-    - name: Install VSCode
-      block:
-        - name: Remove legacy VSCode .list repository
-          ansible.builtin.file:
-            path: /etc/apt/sources.list.d/vscode.list
-            state: absent
+    - name: Add APT repositories
+      ansible.builtin.deb822_repository:
+        name: "{{ item.name }}"
+        types: deb
+        uris: "{{ item.uris }}"
+        suites: "{{ item.suites }}"
+        components: "{{ item.components }}"
+        signed_by: "{{ item.key_dest }}"
+        state: present
+        enabled: true
+      loop: "{{ apt_repos }}"
+      become: yes
 
-        - name: Add Microsoft GPG key
-          ansible.builtin.get_url:
-            url: https://packages.microsoft.com/keys/microsoft.asc
-            dest: /usr/share/keyrings/microsoft.asc
-            mode: '0644'
+    - name: Update apt cache after adding all repositories
+      ansible.builtin.apt:
+        update_cache: yes
+      become: yes
 
-        - name: Add VSCode APT repository
-          ansible.builtin.deb822_repository:
-            name: vscode
-            types: deb
-            uris: https://packages.microsoft.com/repos/code
-            suites: stable
-            components: main
-            signed_by: /usr/share/keyrings/microsoft.asc
-            state: present
-            enabled: true
+    - name: Install APT repository packages
+      ansible.builtin.apt:
+        name: "{{ item.packages }}"
+        state: present
+      loop: "{{ apt_repos }}"
+      when: item.arches is not defined or apt_arch in item.arches
+      become: yes
 
-        - name: Update apt cache after adding VSCode repository
-          ansible.builtin.apt:
-            update_cache: yes
-
-        - name: Install VSCode
-          ansible.builtin.apt:
-            name: code
-            state: present
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_facts['user_id'] }}"
+        groups: docker
+        append: yes
       become: yes
 
     - name: Install WeChat
@@ -156,11 +93,21 @@
             dest: /tmp/wechat.deb
             mode: '0644'
 
-        - name: Install WeChat
+        - name: Install WeChat from local .deb
           ansible.builtin.apt:
             deb: /tmp/wechat.deb
             state: present
+      rescue:
+        - name: Warn on WeChat install failure
+          ansible.builtin.debug:
+            msg: "WeChat 安装失败，请检查网络或架构支持。"
+      always:
+        - name: Clean up downloaded WeChat .deb
+          ansible.builtin.file:
+            path: /tmp/wechat.deb
+            state: absent
       become: yes
+      when: wechat_deb_url != ""
 
     - name: Fix possible broken dependencies after installing third-party .deb packages
       ansible.builtin.apt:
