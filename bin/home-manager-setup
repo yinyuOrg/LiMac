@@ -1,7 +1,7 @@
 #!/bin/bash
 # home-manager-setup.sh - 自动化设置 LiMac Home Manager（个人配置外置版）
 
-set -e  # 遇到错误立即退出
+set -euo pipefail  # 遇错即退；未定义变量报错；管道错误传播
 
 # 颜色定义
 RED='\033[0;31m'
@@ -10,10 +10,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-if [ -L ${BASH_SOURCE-$0} ]; then
-  FWDIR=$(dirname $(readlink "${BASH_SOURCE-$0}"))
+SELF="${BASH_SOURCE[0]:-$0}"
+if [ -L "$SELF" ]; then
+  FWDIR=$(dirname "$(readlink "$SELF")")
 else
-  FWDIR=$(dirname "${BASH_SOURCE-$0}")
+  FWDIR=$(dirname "$SELF")
 fi
 project_dir="$(cd "${FWDIR}/.."; pwd)"
 cd "$project_dir"
@@ -52,16 +53,33 @@ check_dependencies() {
     log_success "依赖检查通过"
 }
 
+# 幂等追加一行到 nix.conf（已存在则跳过），避免覆盖用户已有配置
+append_nix_conf_line() {
+    local line="$1"
+    local nix_conf=~/.config/nix/nix.conf
+
+    if grep -qxF "$line" "$nix_conf" 2>/dev/null; then
+        return 0
+    fi
+
+    printf '%s\n' "$line" >> "$nix_conf"
+}
+
 # 启用 Nix 实验性功能
 enable_experimental_features() {
     log_info "启用 Nix 实验性功能..."
 
     mkdir -p ~/.config/nix
-    cat > ~/.config/nix/nix.conf << 'EOF'
-experimental-features = nix-command flakes
-extra-substituters = https://cache.nixos.org
-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
-EOF
+    local nix_conf=~/.config/nix/nix.conf
+
+    # 备份已有配置，避免覆盖用户的 substituters / trusted-public-keys 等
+    if [ -f "$nix_conf" ]; then
+        local backup="${nix_conf}.bak.$(date +%Y%m%d-%H%M%S)"
+        cp "$nix_conf" "$backup"
+        log_warning "已备份现有 nix.conf 到 $backup"
+    fi
+
+    append_nix_conf_line 'experimental-features = nix-command flakes'
 
     log_success "Nix 实验性功能已启用"
 }
@@ -151,70 +169,61 @@ generate_host_config() {
 
     local use_wsl_optimization=false
     if [ "$is_wsl" = true ]; then
-        echo
-        log_info "检测到您当前运行在 WSL/WSL2 (Windows Subsystem for Linux) 环境中。"
-        log_info "在 WSL2 环境下，推荐使用 Windows 宿主机的 VS Code (通过 WSL Remote 插件) 和宿主机 Docker Desktop，"
-        log_info "并且通常不需要物理调试的嵌入式开发工具。"
-        echo
-        while true; do
-            read -p "是否为您应用 WSL 专属优化（关闭 GUI 软件、嵌入式工具和本地 Docker，只保留核心基础工具与语言级开发包）？[Y/n]: " input_wsl
-            case "${input_wsl:-Y}" in
-                [Yy]*)
-                    use_wsl_optimization=true
-                    break
-                    ;;
-                [Nn]*)
-                    use_wsl_optimization=false
-                    break
-                    ;;
-                *)
-                    log_warning "请输入 y 或 n"
-                    ;;
-            esac
-        done
+        use_wsl_optimization=$(ask_wsl_optimization)
     fi
 
-    if [ "$IS_DARWIN" = true ]; then
-        cat > "$host_file" << EOF
-{
-  home.username = "${current_user}";
-
-  programs.git.settings = {
-    user.name = "${git_username}";
-    user.email = "${git_email}";
-  };
-}
-EOF
-    elif [ "$use_wsl_optimization" = true ]; then
-        cat > "$host_file" << EOF
-{
-  home.username = "${current_user}";
-
+    # 三种场景生成的 host.nix 仅 WSL 优化块存在与否这一处差异，统一为一份模板
+    local wsl_block=""
+    if [ "$use_wsl_optimization" = true ]; then
+        wsl_block="
   profiles = {
     embedded.enable = false;   # WSL 环境下不直接物理调试板子
     containers.enable = false; # WSL 环境下建议与 Windows 的 Docker Desktop 整合
   };
-
-  programs.git.settings = {
-    user.name = "${git_username}";
-    user.email = "${git_email}";
-  };
-}
-EOF
-    else
-        cat > "$host_file" << EOF
-{
-  home.username = "${current_user}";
-
-  programs.git.settings = {
-    user.name = "${git_username}";
-    user.email = "${git_email}";
-  };
-}
-EOF
+"
     fi
 
+    cat > "$host_file" << EOF
+{
+  home.username = "${current_user}";
+${wsl_block}
+  programs.git.settings = {
+    user.name = "${git_username}";
+    user.email = "${git_email}";
+  };
+}
+EOF
+
     log_success "本地 Host 配置文件已成功生成: $host_file"
+}
+
+# 询问是否启用 WSL 专属优化（仅在 WSL 环境下调用）
+ask_wsl_optimization() {
+    local use_wsl_optimization=false
+
+    echo
+    log_info "检测到您当前运行在 WSL/WSL2 (Windows Subsystem for Linux) 环境中。"
+    log_info "在 WSL2 环境下，推荐使用 Windows 宿主机的 VS Code (通过 WSL Remote 插件) 和宿主机 Docker Desktop，"
+    log_info "并且通常不需要物理调试的嵌入式开发工具。"
+    echo
+    while true; do
+        read -p "是否为您应用 WSL 专属优化（关闭 GUI 软件、嵌入式工具和本地 Docker，只保留核心基础工具与语言级开发包）？[Y/n]: " input_wsl
+        case "${input_wsl:-Y}" in
+            [Yy]*)
+                use_wsl_optimization=true
+                break
+                ;;
+            [Nn]*)
+                use_wsl_optimization=false
+                break
+                ;;
+            *)
+                log_warning "请输入 y 或 n"
+                ;;
+        esac
+    done
+
+    echo "$use_wsl_optimization"
 }
 
 # 检查 Nix daemon 可访问性（多用户安装常见权限问题）
