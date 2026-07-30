@@ -6,7 +6,7 @@
 }:
 lib.mkIf config.profiles.python.enable {
   home.packages = with pkgs; [
-    python3
+    (python3.withPackages (ps: [ ps.openpyxl ]))
     uv
     ruff
   ];
