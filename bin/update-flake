@@ -32,15 +32,10 @@ echo ""
 echo "✅ Flake inputs updated successfully!"
 
 # Show what changed
-if [[ -f "flake.lock" && -f "$BACKUP_NAME" ]]; then
+if [[ -f "flake.lock" && -n "${BACKUP_NAME:-}" && -f "$BACKUP_NAME" ]]; then
     echo ""
     echo "Changes in flake.lock:"
-    if command -v nvd &> /dev/null; then
-        nvd diff "$BACKUP_NAME" flake.lock || true
-    else
-        echo "(Install 'nvd' for better diff visualization: nix profile install nixpkgs#nvd)"
-        echo "Manual comparison: diff -u $BACKUP_NAME flake.lock"
-    fi
+    diff -u "$BACKUP_NAME" flake.lock || true
 fi
 
 echo ""
