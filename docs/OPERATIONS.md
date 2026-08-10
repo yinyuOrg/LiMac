@@ -20,7 +20,7 @@
 ├── flakeModules/          # Flake 模块
 │   ├── default.nix
 │   ├── formatter.nix      # 格式化配置
-│   └── home-manager.nix   # Home Manager 动态扫描与配置自动注册
+│   └── home-manager.nix   # Home Manager 配置输出注册
 ├── home/                  # Home Manager 模块（用户环境）
 │   ├── default.nix        # 聚合入口
 │   ├── common.nix         # 基础配置
@@ -34,8 +34,7 @@
 │   │   ├── java.nix
 │   │   ├── cpp.nix
 │   │   ├── embedded.nix
-│   │   ├── containers.nix
-│   │   └── ide.nix
+│   │   └── containers.nix
 └── ansible/               # 系统级安装（仅 Debian/Ubuntu）
     ├── playbook.yml
     ├── inventory.ini
@@ -297,32 +296,43 @@ nix fmt
 # home/profiles/python.nix
 {
   pkgs,
+  config,
+  lib,
   ...
-}: {
+}:
+lib.mkIf config.profiles.python.enable {
   home.packages = with pkgs; [
-    python3
+    (python3.withPackages (ps: [ ps.openpyxl ]))
     uv
     ruff
-    poetry    # 新增
+    poetry # 新增
   ];
 }
 ```
 
-如果新增 of 领域没有对应文件，可以新建一个 `home/profiles/<name>.nix`，并在 `home/packages.nix` 中导入：
+如果新增领域没有对应文件，新建一个 `home/profiles/<name>.nix`，并在 `home/packages.nix` 的 `profileMeta` 中添加一项：
 
 ```nix
-imports = [
-  ./profiles/ai.nix
-  ./profiles/core.nix
-  ./profiles/python.nix
+profileMeta = {
+  ai = "启用 AI 相关工具";
   # ...
-  ./profiles/my-new-profile.nix
-];
+  my-new-profile = "启用 XXX 工具";
+};
 ```
+
+`imports` 与开关选项 `profiles.<name>.enable` 会由 `profileMeta` 自动生成，无需手动维护导入列表。
 
 ### 7.2 关闭某个领域
 
-直接注释掉 `home/packages.nix` 中对应的 `imports` 行即可。
+在 `~/.config/limac/host.nix` 中设置：
+
+```nix
+{
+  profiles.<name>.enable = false;
+}
+```
+
+然后重新应用（`home-manager switch --flake .#<system> --impure`）即可。
 
 ### 7.3 系统级 GUI 软件
 
@@ -345,21 +355,19 @@ Chrome、VSCode、微信等通过 Ansible 安装。修改 `ansible/vars/default.
 
 ## 9. 更新微信下载地址
 
-微信的 `.deb` 下载地址可能会更新。请定期维护 `ansible/vars/default.yml` 中的 `wechat_deb_url`。
+微信的 `.deb` 下载地址可能会更新。请定期维护 `ansible/vars/default.yml` 中的 `wechat_deb_urls`。
 
 ### 9.1 获取微信地址
 
-微信地址通常比较稳定：
+微信地址通常比较稳定，按架构分别维护：
 
 ```yaml
-wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
+wechat_deb_urls:
+  x86_64: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_x86_64.deb"
+  aarch64: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb"
 ```
 
-如需 ARM 版本，替换为：
-
-```yaml
-wechat_deb_url: "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb"
-```
+Playbook 会根据当前机器架构自动选择对应的下载地址；未列出的架构会自动跳过微信安装。
 
 ---
 

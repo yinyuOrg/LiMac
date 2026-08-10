@@ -161,8 +161,7 @@ bin/install-via-ansible
 |---|---|---|
 | **格式化配置** | `nix fmt` | 格式化所有 Nix 文件 |
 | **升级所有依赖** | `bin/update-flake` | 更新 `flake.lock` 并创建备份 |
-| **Linux 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<system> --impure` | 修改配置后重新应用，如 `#x86_64-linux` |
-| **macOS 应用更新** | `nix run "nixpkgs#home-manager" -- switch --flake .#<system> --impure` | 修改配置后重新应用，如 `#aarch64-darwin` |
+| **应用更新（Linux/macOS）** | `nix run "nixpkgs#home-manager" -- switch --flake .#<system> --impure` | 修改配置后重新应用，如 `#x86_64-linux`、`#aarch64-darwin` |
 | **检查 Flake 结构** | `nix flake check --no-build` | 验证配置语法与结构 |
 | **查看所有配置名** | `nix flake show` | 列出 flake 提供的所有 outputs |
 | **查看 Home Manager 新闻** | `home-manager news` | 查看更新日志与提示 |

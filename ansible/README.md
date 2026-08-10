@@ -70,7 +70,7 @@ sudo apt remove --purge <实际包名>
 
 ## 注意事项
 
-- 安装微信前，请先到官网获取最新 `.deb` 下载地址，并更新 `ansible/vars/default.yml` 中的 `wechat_deb_url`。
+- 安装微信前，请先到官网获取最新 `.deb` 下载地址，并更新 `ansible/vars/default.yml` 中的 `wechat_deb_urls`（按 `x86_64` / `aarch64` 架构分别维护）。
 - 微信官方 Linux 版可能依赖特定库， playbook 最后会自动运行 `apt --fix-broken` 修复。
 - Docker 安装后需要重新登录或执行 `newgrp docker` 才能免 sudo 使用。
 - 仅 Linux 支持，macOS 上 Ansible playbook 中的部分功能不可用。
