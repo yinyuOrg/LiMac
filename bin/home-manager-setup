@@ -112,6 +112,24 @@ get_system_name() {
     esac
 }
 
+# 检测当前是否为 WSL/WSL2 环境（macOS 直接排除）
+detect_is_wsl() {
+    if [ "${IS_DARWIN:-false}" = true ]; then
+        return 1
+    fi
+    grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null || [ -f /proc/sys/fs/binfmt_misc/WSLPersonal ]
+}
+
+# WSL 专属 profiles 优化块（generate_host_config 与 ensure_wsl_profiles 共用的单一来源）
+wsl_profiles_block() {
+    cat << 'EOF'
+  profiles = {
+    embedded.enable = false;   # WSL 环境下不直接物理调试板子
+    containers.enable = false; # WSL 环境下建议与 Windows 的 Docker Desktop 整合
+  };
+EOF
+}
+
 # 交互式配置并生成本地 host 文件
 generate_host_config() {
     local current_user
@@ -161,10 +179,8 @@ generate_host_config() {
 
     # 检测是否为 WSL
     local is_wsl=false
-    if [ "$IS_DARWIN" = false ]; then
-        if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null || [ -f /proc/sys/fs/binfmt_misc/WSLPersonal ]; then
-            is_wsl=true
-        fi
+    if detect_is_wsl; then
+        is_wsl=true
     fi
 
     local use_wsl_optimization=false
@@ -176,10 +192,7 @@ generate_host_config() {
     local wsl_block=""
     if [ "$use_wsl_optimization" = true ]; then
         wsl_block="
-  profiles = {
-    embedded.enable = false;   # WSL 环境下不直接物理调试板子
-    containers.enable = false; # WSL 环境下建议与 Windows 的 Docker Desktop 整合
-  };
+$(wsl_profiles_block)
 "
     fi
 
@@ -198,14 +211,15 @@ EOF
 }
 
 # 询问是否启用 WSL 专属优化（仅在 WSL 环境下调用）
+# 注意：调用方通过 $(...) 捕获本函数返回值，除最后一行 echo 外的所有输出必须走 stderr
 ask_wsl_optimization() {
     local use_wsl_optimization=false
 
-    echo
-    log_info "检测到您当前运行在 WSL/WSL2 (Windows Subsystem for Linux) 环境中。"
-    log_info "在 WSL2 环境下，推荐使用 Windows 宿主机的 VS Code (通过 WSL Remote 插件) 和宿主机 Docker Desktop，"
-    log_info "并且通常不需要物理调试的嵌入式开发工具。"
-    echo
+    echo >&2
+    log_info "检测到您当前运行在 WSL/WSL2 (Windows Subsystem for Linux) 环境中。" >&2
+    log_info "在 WSL2 环境下，推荐使用 Windows 宿主机的 VS Code (通过 WSL Remote 插件) 和宿主机 Docker Desktop，" >&2
+    log_info "并且通常不需要物理调试的嵌入式开发工具。" >&2
+    echo >&2
     while true; do
         read -p "是否为您应用 WSL 专属优化（关闭 GUI 软件、嵌入式工具和本地 Docker，只保留核心基础工具与语言级开发包）？[Y/n]: " input_wsl
         case "${input_wsl:-Y}" in
@@ -218,12 +232,59 @@ ask_wsl_optimization() {
                 break
                 ;;
             *)
-                log_warning "请输入 y 或 n"
+                log_warning "请输入 y 或 n" >&2
                 ;;
         esac
     done
 
     echo "$use_wsl_optimization"
+}
+
+# 幂等保障：WSL 环境下若既有 host.nix 缺少 profiles 优化块，询问用户后补齐
+ensure_wsl_profiles() {
+    local host_file="$HOME/.config/limac/host.nix"
+
+    detect_is_wsl || return 0
+
+    if [ ! -f "$host_file" ]; then
+        return 0
+    fi
+
+    if grep -q 'embedded\.enable' "$host_file"; then
+        return 0
+    fi
+
+    log_warning "检测到 WSL 环境，但 $host_file 缺少 profiles 优化块（嵌入式/容器工具将被安装）。"
+    while true; do
+        read -p "是否为该文件补齐 WSL 专属 profiles 优化块？[Y/n]: " input_fix
+        case "${input_fix:-Y}" in
+            [Yy]*)
+                break
+                ;;
+            [Nn]*)
+                log_info "已跳过。如后续需要，可手动在 $host_file 中添加 profiles 块。"
+                return 0
+                ;;
+            *)
+                log_warning "请输入 y 或 n"
+                ;;
+        esac
+    done
+
+    local backup="${host_file}.bak.$(date +%Y%m%d-%H%M%S)"
+    cp "$host_file" "$backup"
+    log_info "已备份现有 host.nix 到 $backup"
+
+    awk -v block="$(wsl_profiles_block)" '
+        /^}/ && done == 0 {
+            print ""
+            print block
+            done = 1
+        }
+        { print }
+    ' "$host_file" > "${host_file}.tmp" && mv "${host_file}.tmp" "$host_file"
+
+    log_success "已在 $host_file 中补齐 WSL profiles 优化块"
 }
 
 # 检查 Nix daemon 可访问性（多用户安装常见权限问题）
@@ -405,6 +466,7 @@ EOF
     check_nix_daemon_access
     enable_experimental_features
     generate_host_config
+    ensure_wsl_profiles
     apply_home_manager
     configure_konsole
     cleanup_systemd_services
