@@ -19,6 +19,9 @@ fi
 project_dir="$(cd "${FWDIR}/.."; pwd)"
 cd "$project_dir"
 
+# 标记本轮是否已经生成或修改过 host.nix，避免生成后立即又询问重新选择
+HOST_CONFIG_FRESHLY_WRITTEN=false
+
 # 日志函数
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -236,6 +239,7 @@ ${profiles_block}
 EOF
 
     log_success "本地 Host 配置文件已成功生成: $host_file"
+    HOST_CONFIG_FRESHLY_WRITTEN=true
 }
 
 # 幂等保障：若既有 host.nix 缺少 profiles 块，进入自选流程补齐
@@ -288,6 +292,7 @@ ensure_profiles() {
     ' "$host_file" > "${host_file}.tmp" && mv "${host_file}.tmp" "$host_file"
 
     log_success "已在 $host_file 中补齐 profiles 块"
+    HOST_CONFIG_FRESHLY_WRITTEN=true
 }
 
 # 替换 host.nix 中现有的 profiles 块（按大括号计数定位，支持单行或多行格式）
@@ -547,7 +552,9 @@ EOF
     enable_experimental_features
     generate_host_config
     ensure_profiles
-    maybe_reselect_profiles
+    if [ "$HOST_CONFIG_FRESHLY_WRITTEN" = false ]; then
+        maybe_reselect_profiles
+    fi
     apply_home_manager
     configure_konsole
     cleanup_systemd_services
