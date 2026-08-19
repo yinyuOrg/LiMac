@@ -115,24 +115,49 @@ get_system_name() {
     esac
 }
 
+# 从 home/packages.nix 的 profileMeta 解析 profile 清单（唯一数据源）
+# 输出：每行一条 "name:描述"；文件缺失或解析为空时报错退出
+load_profiles() {
+    local meta_file="$project_dir/home/packages.nix"
+
+    if [ ! -f "$meta_file" ]; then
+        log_error "未找到 $meta_file" >&2
+        exit 1
+    fi
+
+    local profiles
+    profiles=$(
+        sed -n '/profileMeta[[:space:]]*=[[:space:]]*{/,/^[[:space:]]*};/p' "$meta_file" \
+            | grep -E '^[[:space:]]*[a-zA-Z0-9_-]+[[:space:]]*=[[:space:]]*".*";[[:space:]]*$' \
+            | sed -E 's/^[[:space:]]*([a-zA-Z0-9_-]+)[[:space:]]*=[[:space:]]*"(.*)";[[:space:]]*$/\1:\2/'
+    ) || profiles=""
+
+    if [ -z "$profiles" ]; then
+        log_error "无法从 $meta_file 解析 profile 列表，请检查 profileMeta 格式" >&2
+        exit 1
+    fi
+
+    echo "$profiles"
+}
+
 # 交互式选择需要启用的 profile，返回空格分隔的已启用名称列表
 select_profiles() {
-    local profiles=(
-        "core:核心基础工具（ansible、ripgrep、bat、fd 等）"
-        "python:Python 开发套件"
-        "java:Java 开发套件"
-        "cpp:C++ 开发套件"
-        "ai:AI 相关工具"
-        "embedded:嵌入式开发套件（openocd、stlink 等）"
-        "containers:容器/K8s 工具（docker-compose、kubectl）"
-    )
+    local profile_list
+    profile_list=$(load_profiles)
+
+    local profiles=()
+    local item
+    while IFS= read -r item; do
+        profiles+=("$item")
+    done <<< "$profile_list"
+
     local enabled=""
 
     echo >&2
     log_info "请按需选择要启用的 profile（默认全部不启用）" >&2
     echo >&2
 
-    local item name desc
+    local name desc
     for item in "${profiles[@]}"; do
         name="${item%%:*}"
         desc="${item#*:}"
@@ -160,17 +185,19 @@ select_profiles() {
 # 根据已启用列表渲染 host.nix 中的 profiles 块
 render_profiles_block() {
     local enabled=" $1 "
-    local all_profiles=(core python java cpp ai embedded containers)
+    local profile_list
+    profile_list=$(load_profiles)
 
     echo "  profiles = {"
-    local p
-    for p in "${all_profiles[@]}"; do
+    local item p
+    while IFS= read -r item; do
+        p="${item%%:*}"
         if [[ "$enabled" == *" $p "* ]]; then
             echo "    ${p}.enable = true;"
         else
             echo "    ${p}.enable = false;"
         fi
-    done
+    done <<< "$profile_list"
     echo "  };"
 }
 
