@@ -10,6 +10,7 @@ lib.mkIf config.profiles.core.enable {
     lib.mkMerge [
       [
         ansible
+        curl
         ripgrep
         bat
         fd
