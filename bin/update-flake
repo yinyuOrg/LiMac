@@ -19,6 +19,7 @@ if [[ ! -f "flake.nix" ]]; then
 fi
 
 # Create backup of current flake.lock
+BACKUP_NAME=""
 if [[ -f "flake.lock" ]]; then
     BACKUP_NAME="flake.lock.backup.$(date +%Y%m%d_%H%M%S)"
     echo "Creating backup: $BACKUP_NAME"
@@ -26,21 +27,40 @@ if [[ -f "flake.lock" ]]; then
 fi
 
 echo "Updating flake inputs..."
-nix flake update
+if ! nix flake update; then
+    echo ""
+    echo "❌ Flake update failed. flake.lock was not modified."
+    if [[ -n "$BACKUP_NAME" && -f "$BACKUP_NAME" ]]; then
+        echo ""
+        echo "The backup is kept. To restore manually if needed:"
+        echo "  cp $BACKUP_NAME flake.lock"
+    fi
+    exit 1
+fi
 
 echo ""
 echo "✅ Flake inputs updated successfully!"
 
 # Show what changed
-if [[ -f "flake.lock" && -n "${BACKUP_NAME:-}" && -f "$BACKUP_NAME" ]]; then
+if [[ -f "flake.lock" && -n "$BACKUP_NAME" && -f "$BACKUP_NAME" ]]; then
     echo ""
     echo "Changes in flake.lock:"
     diff -u "$BACKUP_NAME" flake.lock || true
+
+    # Keep only the newest backup so flake.lock.backup.* files don't pile up
+    for f in flake.lock.backup.*; do
+        if [[ -f "$f" && "$f" != "$BACKUP_NAME" ]]; then
+            rm -f "$f"
+            echo "Removed old backup: $f"
+        fi
+    done
+    echo "Backup kept: $BACKUP_NAME"
 fi
 
 echo ""
-echo "To build with updated inputs, run:"
-echo "  nix build"
+echo "Next steps:"
+echo "  nix flake check --no-build"
+echo "  nix run \"nixpkgs#home-manager\" -- switch --flake .#x86_64-linux --impure   (replace x86_64-linux with your system)"
 echo ""
-echo "To test home-manager configuration (replace x86_64-linux with your system):"
+echo "Or test by building the activation package (replace x86_64-linux with your system):"
 echo "  nix build .#homeConfigurations.x86_64-linux.activationPackage --impure"
