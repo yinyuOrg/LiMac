@@ -20,7 +20,7 @@ lib.mkIf config.profiles.core.enable {
         trash-cli
       ]
 
-      (lib.mkIf pkgs.stdenv.isLinux [
+      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux [
         ossutil
         awscli2
         tlrc

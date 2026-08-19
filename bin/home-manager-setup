@@ -74,15 +74,21 @@ enable_experimental_features() {
 
     mkdir -p ~/.config/nix
     local nix_conf=~/.config/nix/nix.conf
+    local line='experimental-features = nix-command flakes'
 
-    # 备份已有配置，避免覆盖用户的 substituters / trusted-public-keys 等
+    if grep -qxF "$line" "$nix_conf" 2>/dev/null; then
+        log_info "nix.conf 已包含 experimental-features 配置，跳过"
+        return 0
+    fi
+
+    # 确需追加时才备份已有配置，避免覆盖用户的 substituters / trusted-public-keys 等
     if [ -f "$nix_conf" ]; then
         local backup="${nix_conf}.bak.$(date +%Y%m%d-%H%M%S)"
         cp "$nix_conf" "$backup"
         log_warning "已备份现有 nix.conf 到 $backup"
     fi
 
-    append_nix_conf_line 'experimental-features = nix-command flakes'
+    append_nix_conf_line "$line"
 
     log_success "Nix 实验性功能已启用"
 }
@@ -113,6 +119,14 @@ get_system_name() {
             echo "x86_64-linux"
             ;;
     esac
+}
+
+# 转义字符串中会破坏 Nix 双引号字符串的字符（反斜杠、双引号）
+escape_nix_string() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    printf '%s' "$s"
 }
 
 # 从 home/packages.nix 的 profileMeta 解析 profile 清单（唯一数据源）
@@ -162,7 +176,7 @@ select_profiles() {
         name="${item%%:*}"
         desc="${item#*:}"
         while true; do
-            read -p "  ${name}: ${desc} [y/N]: " input
+            read -rp "  ${name}: ${desc} [y/N]: " input
             case "${input:-N}" in
                 [Yy]*)
                     enabled="${enabled} ${name}"
@@ -227,10 +241,10 @@ generate_host_config() {
     echo
     log_info "请输入配置信息（按 Enter 使用默认值或现有值）"
 
-    read -p "Git 用户名 [${git_username:-暂无}]: " input_git_username
+    read -rp "Git 用户名 [${git_username:-暂无}]: " input_git_username
     git_username=${input_git_username:-$git_username}
 
-    read -p "Git 邮箱 [${git_email:-暂无}]: " input_git_email
+    read -rp "Git 邮箱 [${git_email:-暂无}]: " input_git_email
     git_email=${input_git_email:-$git_email}
 
     # 验证必要信息
@@ -254,13 +268,18 @@ generate_host_config() {
     local profiles_block
     profiles_block=$(render_profiles_block "$enabled_profiles")
 
+    local safe_username safe_git_username safe_git_email
+    safe_username=$(escape_nix_string "$current_user")
+    safe_git_username=$(escape_nix_string "$git_username")
+    safe_git_email=$(escape_nix_string "$git_email")
+
     cat > "$host_file" << EOF
 {
-  home.username = "${current_user}";
+  home.username = "${safe_username}";
 ${profiles_block}
   programs.git.settings = {
-    user.name = "${git_username}";
-    user.email = "${git_email}";
+    user.name = "${safe_git_username}";
+    user.email = "${safe_git_email}";
   };
 }
 EOF
@@ -287,7 +306,7 @@ ensure_profiles() {
     enabled_profiles=$(select_profiles)
 
     while true; do
-        read -p "是否将上述选择写入 $host_file？[Y/n]: " input_fix
+        read -rp "是否将上述选择写入 $host_file？[Y/n]: " input_fix
         case "${input_fix:-Y}" in
             [Yy]*)
                 break
@@ -373,7 +392,7 @@ maybe_reselect_profiles() {
         | sed 's/^[[:space:]]*/  /' >&2 || true
 
     while true; do
-        read -p "是否需要重新选择 profile？[y/N]: " input_reselect
+        read -rp "是否需要重新选择 profile？[y/N]: " input_reselect
         case "${input_reselect:-N}" in
             [Yy]*)
                 break
@@ -466,9 +485,7 @@ configure_konsole() {
         return
     fi
 
-    local current_user
-    current_user=$(whoami)
-    local fish_path="/home/$current_user/.nix-profile/bin/fish"
+    local fish_path="$HOME/.nix-profile/bin/fish"
 
     if [ ! -f "$fish_path" ]; then
         log_warning "Fish shell 未找到，跳过 Konsole 配置"
@@ -498,15 +515,7 @@ EOF
 
 # 显示完成信息
 show_completion() {
-    local current_user
-    current_user=$(whoami)
-
-    local fish_path
-    if [ "$IS_DARWIN" = true ]; then
-        fish_path="/Users/$current_user/.nix-profile/bin/fish"
-    else
-        fish_path="/home/$current_user/.nix-profile/bin/fish"
-    fi
+    local fish_path="$HOME/.nix-profile/bin/fish"
 
     echo
     log_success "Home Manager 设置完成！"

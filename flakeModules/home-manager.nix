@@ -18,7 +18,7 @@ let
       home.username = lib.mkDefault "limac";
 
       home.homeDirectory = lib.mkDefault "/${
-        if pkgs.stdenv.isDarwin then "Users" else "home"
+        if pkgs.stdenv.hostPlatform.isDarwin then "Users" else "home"
       }/${config.home.username}";
 
       imports = [
@@ -33,7 +33,7 @@ let
   hasLocalHost = userHome != "" && builtins.pathExists localHostFile;
 
   mkHomeConfig =
-    _name: system:
+    system:
     inputs.home-manager.lib.homeManagerConfiguration {
       pkgs = inputs.nixpkgs.legacyPackages.${system};
       modules = [
@@ -50,7 +50,7 @@ in
   flake = {
     inherit homeModules;
     homeConfigurations = lib.mapAttrs' (
-      name: system: lib.nameValuePair name (mkHomeConfig name system)
+      name: system: lib.nameValuePair name (mkHomeConfig system)
     ) platforms;
   };
 }

@@ -8,7 +8,7 @@
   programs.fish = {
     enable = true;
     shellInit =
-      lib.optionalString pkgs.stdenv.isDarwin ''
+      lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
         fish_add_path -g $HOME/.nix-profile/bin
         fish_add_path -g /nix/var/nix/profiles/default/bin
         fish_add_path -g /opt/homebrew/bin
@@ -37,7 +37,7 @@
         fgfg = "fg";
         da = "direnv allow";
       }
-      (lib.mkIf pkgs.stdenv.isLinux {
+      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
         sc = "systemctl";
         jc = "journalctl";
       })
