@@ -127,6 +127,16 @@ get_system_name() {
     esac
 }
 
+# 检测是否运行在 WSL2 环境（仅用于完成提示等展示逻辑）
+detect_is_wsl() {
+    grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null
+}
+
+# 检测当前系统是否运行 systemd
+has_systemd() {
+    [ -d /run/systemd/system ]
+}
+
 # 转义字符串中会破坏 Nix 双引号字符串的字符（反斜杠、双引号）
 escape_nix_string() {
     local s="$1"
@@ -525,6 +535,11 @@ configure_konsole() {
         return
     fi
 
+    if [ "$IS_WSL" = true ]; then
+        log_info "WSL2 跳过 Konsole 配置（请按完成提示中的 WSL2 步骤设置默认 Shell）"
+        return
+    fi
+
     if ! command -v konsole &> /dev/null; then
         log_warning "Konsole 未安装，跳过配置"
         return
@@ -558,7 +573,7 @@ EOF
     log_info "4. 设置为默认 profile (可选)"
 }
 
-# 显示完成信息
+# 显示完成信息（按操作系统展示对应的后续操作提示）
 show_completion() {
     local fish_path="$HOME/.nix-profile/bin/fish"
 
@@ -566,25 +581,20 @@ show_completion() {
     log_success "Home Manager 设置完成！"
     echo
     log_info "后续操作："
-    log_info "1. 格式化配置: nix fmt"
-    log_info "2. 更新配置: nix run \"nixpkgs#home-manager\" -- switch --flake .#$SYSTEM_NAME --impure"
-    log_info "3. 查看新闻: home-manager news"
+    log_info "1. 更新依赖: bin/update-flake"
+    log_info "2. 重新应用配置: bin/home-manager-setup"
     echo
     log_info "重要提示："
     log_info "- Fish shell 路径: $fish_path"
-    log_info "- 请在终端中手动配置使用此 shell"
     if [ "$IS_DARWIN" = true ]; then
-        log_info "- macOS 上请在终端/iTerm2/VSCode 中配置"
+        log_info "- macOS：在 Terminal/iTerm2/VSCode 中将 Shell 指向上方路径（详见 docs/OPERATIONS.md §3.2）"
+    elif [ "$IS_WSL" = true ]; then
+        log_info "- WSL2：将 Fish 设为默认登录 Shell（详见 docs/OPERATIONS.md §3.4）："
+        log_info "    sudo sh -c \"echo \$(realpath $fish_path) >> /etc/shells\""
+        log_info "    chsh -s $fish_path"
+        log_info "    然后在 Windows 中执行 wsl --shutdown 使其生效"
     else
-        log_info "- 推荐在 Konsole 中设置 LiMac profile"
-    fi
-    echo
-    if [ "$IS_DARWIN" = true ]; then
-        log_info "macOS 不支持 systemd，无需清理服务"
-    else
-        log_info "如果遇到 systemd 服务错误，请运行:"
-        log_info "systemctl --user reset-failed"
-        log_info "systemctl --user daemon-reload"
+        log_info "- Linux：推荐在 Konsole 中设置 LiMac profile（详见 docs/OPERATIONS.md §3.1）"
     fi
 }
 
@@ -592,6 +602,11 @@ show_completion() {
 cleanup_systemd_services() {
     if [ "$IS_DARWIN" = true ]; then
         log_info "macOS 不支持 systemd，跳过清理"
+        return
+    fi
+
+    if ! has_systemd; then
+        log_info "未检测到运行中的 systemd，跳过服务清理"
         return
     fi
 
@@ -736,10 +751,18 @@ EOF
     if [ "$OS_TYPE" = "darwin" ]; then
         IS_DARWIN=true
     fi
+    IS_WSL=false
+    if [ "$OS_TYPE" = "linux" ] && detect_is_wsl; then
+        IS_WSL=true
+    fi
     SYSTEM_NAME=$(get_system_name)
 
     log_info "开始设置 LiMac Home Manager"
-    log_info "检测到平台: $(uname) ($OS_TYPE / $(uname -m))"
+    local platform_desc="$(uname) ($OS_TYPE / $(uname -m))"
+    if [ "$IS_WSL" = true ]; then
+        platform_desc="$platform_desc [WSL2]"
+    fi
+    log_info "检测到平台: $platform_desc"
 
     # 执行步骤
     check_dependencies
