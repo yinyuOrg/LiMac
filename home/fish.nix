@@ -28,7 +28,6 @@
         g = "git";
         n = "nvim";
         cdtmp = "cd (mktemp -d /tmp/limac-XXXXXX)";
-        decolorize = "sed -r \"s/\\x1B\\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]//g\"";
         nf = "nix flake";
         ns = "nix shell";
         eproxy = "set -e {HTTP, HTTPS, ALL, FTP, RSYNC}_PROXY";
@@ -43,6 +42,11 @@
       })
     ];
     functions = {
+      decolorize = {
+        description = "Strip ANSI color/escape codes from input";
+        # fish <= 4.8 中函数内 string 读不到管道 stdin（fish-shell#5714），需经 cat 中转
+        body = "cat $argv | string replace -ra '\\x1B\\[([0-9]{1,3}(;[0-9]{1,3})*)?[mGK]' ''";
+      };
       cht = {
         description = "Check the cheat sheet for command";
         body =
