@@ -38,8 +38,9 @@
 
 | 系统 | 状态 | 说明 |
 |---|---|---|
-| `x86_64-linux` | ✅ 已验证 | 主流 Linux 桌面/服务器 |
-| `aarch64-darwin` | ✅ 已验证 | Apple Silicon Mac（M1/M2/M3） |
+| `x86_64-linux` | ✅ 已验证 | 主流 Linux 桌面/服务器（Debian、Ubuntu 已验证） |
+| WSL2 | ✅ 已验证 | Windows Subsystem for Linux 2（Debian、Ubuntu、Deepin 已验证） |
+| `aarch64-darwin` | ✅ 已验证 | Apple Silicon Mac（M2/M3） |
 | `aarch64-linux` | ⏳ 未验证 | ARM Linux，理论上支持 |
 | `x86_64-darwin` | ⏳ 未验证 | Intel Mac，理论上支持 |
 
