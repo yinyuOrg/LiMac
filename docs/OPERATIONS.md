@@ -213,12 +213,14 @@ bin/home-manager-setup
 ```
 
 脚本会交互式引导你完成：
-1. 检查并开启 Nix Flakes 实验性特性。
+1. 检查依赖（Nix、Git、Nix daemon 连通性）并开启 Nix Flakes 实验性特性。
 2. 自动获取当前系统的用户名、平台与架构。
 3. 提示输入 Git 全局的用户名和邮箱。
-4. 在 `~/.config/limac/host.nix` 生成你的本地专属配置文件。
+4. 自选启用的 profile（清单来自 `home/packages.nix` 的 `profileMeta`，默认全部不启用），并在 `~/.config/limac/host.nix` 生成你的本地专属配置文件。
 5. **使用 `--impure` 应用**：flake 通过 `--impure` 读取仓库外的本地配置，无需也不会把个人信息提交进仓库。
 6. 自动直接应用当前主仓库的配置。
+
+> 重复运行脚本时：已有 `host.nix` 会展示当前启用的 profile 并询问是否重新选择（默认保持）；旧配置缺少 profiles 块时会引导自选补齐。
 
 ---
 
@@ -314,13 +316,13 @@ lib.mkIf config.profiles.python.enable {
 
 ```nix
 profileMeta = {
-  ai = "启用 AI 相关工具";
+  ai = "AI 相关工具";
   # ...
-  my-new-profile = "启用 XXX 工具";
+  my-new-profile = "XXX 工具描述";
 };
 ```
 
-`imports` 与开关选项 `profiles.<name>.enable` 会由 `profileMeta` 自动生成，无需手动维护导入列表。
+`imports` 与开关选项 `profiles.<name>.enable` 会由 `profileMeta` 自动生成，无需手动维护导入列表；`bin/home-manager-setup` 的交互清单也从这里自动解析（唯一数据源），无需同步修改脚本。
 
 ### 7.2 关闭某个领域
 

@@ -121,9 +121,11 @@ bin/home-manager-setup
 
 1. **检查依赖**：确认 Nix、Git 与 Nix daemon 可访问。
 2. **开启 Flakes**：自动配置 `~/.config/nix/nix.conf`。
-3. **生成本地专属配置文件**：根据当前系统用户名和平台，在 `~/.config/limac/host.nix` 创建配置。
+3. **生成本地专属配置文件**：根据当前系统用户名和平台，在 `~/.config/limac/host.nix` 创建配置，并**自选启用的 profile**（core/Python/Java/C++/AI/嵌入式/容器，默认全部不启用，清单解析自 `home/packages.nix`）。
 4. **使用 `--impure` 应用**：脚本会带 `--impure` 运行 home-manager，使 flake 能够读取仓库外的本地配置。
 5. **直接应用**：一键应用所有用户包与环境配置。
+
+> 重复运行脚本时：已有 `host.nix` 会询问是否重新选择 profile（默认保持）；旧配置缺少 profiles 块会引导自选补齐。
 
 ### 第三步：更换默认 Shell
 

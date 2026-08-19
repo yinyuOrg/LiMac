@@ -8,12 +8,6 @@ flake.lock.backup*
 # macOS metadata
 .DS_Store
 
-# Per-host mutable state
-username
-
-# Generated per-machine host configs (kept outside repo via ~/.config/limac/host.nix)
-hosts/*.nix
-
 # Direnv
 .envrc.local
 .direnv/
