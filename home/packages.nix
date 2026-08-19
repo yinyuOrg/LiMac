@@ -22,7 +22,7 @@ in
   options.profiles = lib.genAttrs profileNames (name: {
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = false;
       description = profileMeta.${name};
     };
   });

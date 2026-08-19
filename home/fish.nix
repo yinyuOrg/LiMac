@@ -1,6 +1,7 @@
 {
   pkgs,
   lib,
+  config,
   ...
 }:
 {
@@ -19,7 +20,7 @@
         set -gx LDFLAGS "-L/opt/homebrew/opt/llvm/lib"
         set -gx CPPFLAGS "-I/opt/homebrew/opt/llvm/include"
       '';
-    shellAliases = {
+    shellAliases = lib.mkIf config.profiles.core.enable {
       rm = "trash";
     };
     shellAbbrs = lib.mkMerge [
