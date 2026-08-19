@@ -127,6 +127,14 @@ bin/home-manager-setup
 
 > 重复运行脚本时：已有 `host.nix` 会询问是否重新选择 profile（默认保持）；旧配置缺少 profiles 块会引导自选补齐。
 
+非交互模式（适合脚本化/自动化装机）：
+
+```sh
+bin/home-manager-setup --profiles core,python --git-name "你的名字" --git-email you@example.com
+```
+
+完整参数见 `bin/home-manager-setup --help`；`--git-name/--git-email` 仅在首次生成 `host.nix` 时生效。
+
 ### 第三步：更换默认 Shell
 
 要享受所有 Nix 软件与 Fish 别名，需将终端 Shell 切换为 Home Manager 管理的 Fish：

@@ -22,6 +22,12 @@ cd "$project_dir"
 # 标记本轮是否已经生成或修改过 host.nix，避免生成后立即又询问重新选择
 HOST_CONFIG_FRESHLY_WRITTEN=false
 
+# 命令行参数（非交互模式），由 parse_args 填充
+CLI_PROFILES=""          # 空格分隔的待启用 profile 列表
+CLI_PROFILES_SET=false   # 是否显式传入 --profiles（空串 = 显式全部不启用）
+CLI_GIT_NAME=""
+CLI_GIT_EMAIL=""
+
 # 日志函数
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -224,6 +230,9 @@ generate_host_config() {
 
     if [ -f "$host_file" ]; then
         log_info "检测到已存在本地 Host 配置文件: $host_file，将直接使用该配置。"
+        if [ -n "$CLI_GIT_NAME" ] || [ -n "$CLI_GIT_EMAIL" ]; then
+            log_warning "host.nix 已存在，--git-name/--git-email 被忽略（Git 信息仅在首次生成时写入）"
+        fi
         return 0
     fi
 
@@ -241,11 +250,21 @@ generate_host_config() {
     echo
     log_info "请输入配置信息（按 Enter 使用默认值或现有值）"
 
-    read -rp "Git 用户名 [${git_username:-暂无}]: " input_git_username
-    git_username=${input_git_username:-$git_username}
+    if [ -n "$CLI_GIT_NAME" ]; then
+        git_username="$CLI_GIT_NAME"
+        log_info "Git 用户名（来自 --git-name）: $git_username"
+    else
+        read -rp "Git 用户名 [${git_username:-暂无}]: " input_git_username
+        git_username=${input_git_username:-$git_username}
+    fi
 
-    read -rp "Git 邮箱 [${git_email:-暂无}]: " input_git_email
-    git_email=${input_git_email:-$git_email}
+    if [ -n "$CLI_GIT_EMAIL" ]; then
+        git_email="$CLI_GIT_EMAIL"
+        log_info "Git 邮箱（来自 --git-email）: $git_email"
+    else
+        read -rp "Git 邮箱 [${git_email:-暂无}]: " input_git_email
+        git_email=${input_git_email:-$git_email}
+    fi
 
     # 验证必要信息
     if [ -z "$git_username" ]; then
@@ -263,7 +282,12 @@ generate_host_config() {
     mkdir -p "$local_config_dir"
 
     local enabled_profiles
-    enabled_profiles=$(select_profiles)
+    if [ "$CLI_PROFILES_SET" = true ]; then
+        enabled_profiles="$CLI_PROFILES"
+        log_info "使用 --profiles 指定的启用列表: ${enabled_profiles:-（全部不启用）}"
+    else
+        enabled_profiles=$(select_profiles)
+    fi
 
     local profiles_block
     profiles_block=$(render_profiles_block "$enabled_profiles")
@@ -300,26 +324,31 @@ ensure_profiles() {
         return 0
     fi
 
-    log_warning "检测到 $host_file 缺少 profiles 块，将进入自选流程补齐。"
-
     local enabled_profiles
-    enabled_profiles=$(select_profiles)
+    if [ "$CLI_PROFILES_SET" = true ]; then
+        enabled_profiles="$CLI_PROFILES"
+        log_warning "检测到 $host_file 缺少 profiles 块，按 --profiles 补齐: ${enabled_profiles:-（全部不启用）}"
+    else
+        log_warning "检测到 $host_file 缺少 profiles 块，将进入自选流程补齐。"
 
-    while true; do
-        read -rp "是否将上述选择写入 $host_file？[Y/n]: " input_fix
-        case "${input_fix:-Y}" in
-            [Yy]*)
-                break
-                ;;
-            [Nn]*)
-                log_info "已跳过。如后续需要，可手动在 $host_file 中添加 profiles 块。"
-                return 0
-                ;;
-            *)
-                log_warning "请输入 y 或 n"
-                ;;
-        esac
-    done
+        enabled_profiles=$(select_profiles)
+
+        while true; do
+            read -rp "是否将上述选择写入 $host_file？[Y/n]: " input_fix
+            case "${input_fix:-Y}" in
+                [Yy]*)
+                    break
+                    ;;
+                [Nn]*)
+                    log_info "已跳过。如后续需要，可手动在 $host_file 中添加 profiles 块。"
+                    return 0
+                    ;;
+                *)
+                    log_warning "请输入 y 或 n"
+                    ;;
+            esac
+        done
+    fi
 
     local backup="${host_file}.bak.$(date +%Y%m%d-%H%M%S)"
     cp "$host_file" "$backup"
@@ -386,9 +415,25 @@ maybe_reselect_profiles() {
         return 0
     fi
 
+    if [ "$CLI_PROFILES_SET" = true ]; then
+        local current wanted_new
+        current=$(current_enabled_profiles "$host_file")
+        wanted_new=$(sorted_profiles_list "$CLI_PROFILES")
+        if [ "$current" = "$wanted_new" ]; then
+            log_info "profiles 与 --profiles 指定一致，无需更改"
+            return 0
+        fi
+        log_info "按 --profiles 更新 profiles 块: ${CLI_PROFILES:-（全部不启用）}"
+        local profiles_block
+        profiles_block=$(render_profiles_block "$CLI_PROFILES")
+        replace_profiles_block "$host_file" "$profiles_block"
+        log_success "已更新 $host_file 中的 profiles 块"
+        return 0
+    fi
+
     echo >&2
     log_info "检测到已存在 host.nix，当前启用的 profile 如下：" >&2
-    grep -E '^[[:space:]]*[a-z]+\.enable[[:space:]]*=[[:space:]]*true;' "$host_file" \
+    grep -E '^[[:space:]]*[a-z][a-z0-9_-]*\.enable[[:space:]]*=[[:space:]]*true;' "$host_file" \
         | sed 's/^[[:space:]]*/  /' >&2 || true
 
     while true; do
@@ -559,8 +604,122 @@ cleanup_systemd_services() {
     log_success "systemd 服务清理完成"
 }
 
+# 显示帮助信息
+usage() {
+    cat <<'EOF'
+用法: bin/home-manager-setup [选项]
+
+选项:
+  --profiles LIST     非交互启用指定 profile（逗号或空格分隔，如 core,python）；
+                      传空串表示显式全部不启用
+  --git-name NAME     Git 用户名（配合 --profiles 可全自动生成 host.nix）
+  --git-email EMAIL   Git 邮箱
+  -h, --help          显示本帮助
+
+不带任何参数时保持原有交互式流程。
+EOF
+}
+
+# 解析命令行参数，填充 CLI_* 全局变量
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --profiles)
+                if [ $# -lt 2 ]; then
+                    log_error "--profiles 需要一个参数值" >&2
+                    exit 1
+                fi
+                CLI_PROFILES=$(printf '%s' "$2" | tr ',' ' ')
+                CLI_PROFILES_SET=true
+                shift 2
+                ;;
+            --profiles=*)
+                CLI_PROFILES=$(printf '%s' "${1#*=}" | tr ',' ' ')
+                CLI_PROFILES_SET=true
+                shift
+                ;;
+            --git-name)
+                if [ $# -lt 2 ]; then
+                    log_error "--git-name 需要一个参数值" >&2
+                    exit 1
+                fi
+                CLI_GIT_NAME="$2"
+                shift 2
+                ;;
+            --git-name=*)
+                CLI_GIT_NAME="${1#*=}"
+                shift
+                ;;
+            --git-email)
+                if [ $# -lt 2 ]; then
+                    log_error "--git-email 需要一个参数值" >&2
+                    exit 1
+                fi
+                CLI_GIT_EMAIL="$2"
+                shift 2
+                ;;
+            --git-email=*)
+                CLI_GIT_EMAIL="${1#*=}"
+                shift
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                log_error "未知参数: $1" >&2
+                usage >&2
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# 校验空格分隔的 profile 列表，逐一与 load_profiles 的有效名称比对
+validate_profiles_list() {
+    local wanted="$1"
+    if [ -z "$wanted" ]; then
+        return 0
+    fi
+
+    local valid
+    valid=$(load_profiles | cut -d: -f1)
+
+    local name
+    for name in $wanted; do
+        if ! printf '%s\n' "$valid" | grep -qxF "$name"; then
+            log_error "未知的 profile: $name（有效值: $(printf '%s\n' "$valid" | paste -sd,)）" >&2
+            exit 1
+        fi
+    done
+}
+
+# 提取 host.nix 中当前启用的 profile 名称（排序后输出，用于幂等比对）
+current_enabled_profiles() {
+    local host_file="$1"
+    grep -E '^[[:space:]]*[a-z][a-z0-9_-]*\.enable[[:space:]]*=[[:space:]]*true;' "$host_file" \
+        | sed -E 's/^[[:space:]]+//; s/\.enable[[:space:]]*=.*$//' \
+        | sort \
+        || true
+}
+
+# 将空格分隔的 profile 列表规范化为排序后的多行（空列表输出空串）
+sorted_profiles_list() {
+    local list="$1"
+    if [ -z "$list" ]; then
+        return 0
+    fi
+    printf '%s\n' $list | sort
+}
+
 # 主函数
 main() {
+    parse_args "$@"
+
+    if [ "$CLI_PROFILES_SET" = true ]; then
+        validate_profiles_list "$CLI_PROFILES"
+    fi
+
     echo -e "${BLUE}"
     cat << "EOF"
 ██╗     ██╗███╗   ███╗ █████╗  ██████╗
